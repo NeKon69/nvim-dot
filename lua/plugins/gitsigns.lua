@@ -1,7 +1,6 @@
 -- lua/plugins/gitsigns.lua
 return {
   "lewis6991/gitsigns.nvim",
-  -- We want this to load when we open a file
   event = { "BufReadPre", "BufNewFile" },
   opts = {
     -- Configuration for the signs in the gutter

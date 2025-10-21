@@ -25,7 +25,7 @@ return {
                 vim.schedule(function()
                   local dot_pos = filename:reverse():find("%.")
                   if dot_pos then
-                    local select_end = #filename - dot_pos
+                    local select_end = #filename - dot_pos - 1
                     vim.api.nvim_feedkeys(
                       vim.api.nvim_replace_termcodes("<Home><C-o>v" .. select_end .. "l", true, false, true),
                       "n",
@@ -123,12 +123,12 @@ return {
           if result == true then pcall(api.tree.reload) end
 
           expand_next(index + 1)
-        end, 5) -- ⚡ 20ms → 5ms (4x faster!)
+        end, 5)
       end
 
       vim.defer_fn(function()
         expand_next(1)
-      end, 50) -- ⚡ 200ms → 50ms (4x faster!)
+      end, 50)
     end
 
     local function restore_state_background()
@@ -142,8 +142,8 @@ return {
         vim.defer_fn(function()
           api.tree.close()
           restore_pending = false
-        end, 150) -- ⚡ 500ms → 150ms (3.3x faster!)
-      end, 100) -- ⚡ 300ms → 100ms (3x faster!)
+        end, 150)
+      end, 100)
     end
 
     local function on_attach(bufnr)
@@ -159,7 +159,6 @@ return {
         }
       end
 
-      -- 🔭 Telescope integration
       local function telescope_find_files()
         local node = api.tree.get_node_under_cursor()
         local path = node.absolute_path
@@ -244,8 +243,8 @@ return {
                   
                   vim.defer_fn(function()
                     api.node.open.edit()
-                  end, 10) -- ⚡ 50ms → 10ms (5x faster!)
-                end, 30) -- ⚡ 100ms → 30ms (3.3x faster!)
+                  end, 10)
+                end, 30)
               end
             end)
             return true
@@ -253,7 +252,6 @@ return {
         }):find()
       end
 
-      -- 📂 Navigation
       vim.keymap.set("n", "<CR>", api.node.open.edit, opts("Open"))
       vim.keymap.set("n", "o", api.node.open.edit, opts("Open"))
       vim.keymap.set("n", "<2-LeftMouse>", api.node.open.edit, opts("Open"))
@@ -261,12 +259,10 @@ return {
       vim.keymap.set("n", "h", api.node.navigate.parent_close, opts("Close Directory"))
       vim.keymap.set("n", "<BS>", api.node.navigate.parent_close, opts("Close Directory"))
       
-      -- 🪟 Window splits
       vim.keymap.set("n", "v", api.node.open.vertical, opts("Open: Vertical Split"))
       vim.keymap.set("n", "s", api.node.open.horizontal, opts("Open: Horizontal Split"))
       vim.keymap.set("n", "t", api.node.open.tab, opts("Open: New Tab"))
 
-      -- 🗂️ File operations
       vim.keymap.set("n", "a", api.fs.create, opts("➕ Create File/Directory"))
       vim.keymap.set("n", "d", api.fs.remove, opts("🗑️  Delete"))
       vim.keymap.set("n", "D", api.fs.trash, opts("🗑️  Trash"))
@@ -274,7 +270,6 @@ return {
       vim.keymap.set("n", "e", api.fs.rename_basename, opts("✏️  Rename: Basename"))
       vim.keymap.set("n", "<C-r>", api.fs.rename_sub, opts("✏️  Rename: Omit Filename"))
       
-      -- 📋 Copy/Cut/Paste
       vim.keymap.set("n", "c", api.fs.copy.node, opts("📋 Copy"))
       vim.keymap.set("n", "x", api.fs.cut, opts("✂️  Cut"))
       vim.keymap.set("n", "p", api.fs.paste, opts("📌 Paste"))
@@ -282,26 +277,22 @@ return {
       vim.keymap.set("n", "Y", api.fs.copy.relative_path, opts("📋 Copy Relative Path"))
       vim.keymap.set("n", "gy", api.fs.copy.absolute_path, opts("📋 Copy Absolute Path"))
 
-      -- 🔍 Search - TELESCOPE INTEGRATION! ✨
       vim.keymap.set("n", "f", telescope_find_files, opts("🔭 Telescope: Find Files"))
       vim.keymap.set("n", "F", telescope_live_grep, opts("🔭 Telescope: Live Grep"))
       vim.keymap.set("n", "<C-f>", telescope_find_directory, opts("🔭🗂️  Telescope: Find Directory"))
       vim.keymap.set("n", "S", api.tree.search_node, opts("🔍 Search Node"))
       vim.keymap.set("n", "<C-k>", api.node.show_info_popup, opts("ℹ️  Info"))
       
-      -- 🌳 Tree operations
       vim.keymap.set("n", "R", api.tree.reload, opts("🔄 Refresh"))
       vim.keymap.set("n", "E", api.tree.expand_all, opts("📂 Expand All"))
       vim.keymap.set("n", "W", api.tree.collapse_all, opts("📁 Collapse All"))
       vim.keymap.set("n", "-", api.tree.change_root_to_parent, opts("⬆️  Up Directory"))
       vim.keymap.set("n", "<C-]>", api.tree.change_root_to_node, opts("💿 CD"))
 
-      -- 🎭 Filters toggles
       vim.keymap.set("n", "H", api.tree.toggle_hidden_filter, opts("👁️  Toggle Dotfiles"))
       vim.keymap.set("n", "I", api.tree.toggle_gitignore_filter, opts("🔀 Toggle Git Ignore"))
       vim.keymap.set("n", "B", api.tree.toggle_no_buffer_filter, opts("🗂️  Toggle No Buffer"))
       
-      -- 🚀 Quick actions
       vim.keymap.set("n", "q", api.tree.close, opts("❌ Close"))
       vim.keymap.set("n", "g?", api.tree.toggle_help, opts("❓ Help"))
       vim.keymap.set("n", "<Tab>", api.node.open.preview, opts("👁️  Preview"))
@@ -310,17 +301,14 @@ return {
       vim.keymap.set("n", ">", api.node.navigate.sibling.next, opts("➡️  Next Sibling"))
       vim.keymap.set("n", "<", api.node.navigate.sibling.prev, opts("⬅️  Prev Sibling"))
 
-      -- 📖 Bookmarks
       vim.keymap.set("n", "m", api.marks.toggle, opts("🔖 Toggle Bookmark"))
       vim.keymap.set("n", "bd", api.marks.bulk.delete, opts("🗑️  Delete Bookmarked"))
       vim.keymap.set("n", "bt", api.marks.bulk.trash, opts("🗑️  Trash Bookmarked"))
       vim.keymap.set("n", "bmv", api.marks.bulk.move, opts("📦 Move Bookmarked"))
 
-      -- 🔀 Git navigation
       vim.keymap.set("n", "[c", api.node.navigate.git.prev, opts("⬅️  Prev Git"))
       vim.keymap.set("n", "]c", api.node.navigate.git.next, opts("➡️  Next Git"))
 
-      -- 🩺 Diagnostics navigation
       vim.keymap.set("n", "[e", api.node.navigate.diagnostics.prev, opts("⬅️  Prev Diagnostic"))
       vim.keymap.set("n", "]e", api.node.navigate.diagnostics.next, opts("➡️  Next Diagnostic"))
     end
@@ -374,8 +362,6 @@ return {
         },
       },
     })
-
-    -- ⚡ Faster autosave: 2000ms → 1500ms
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "NvimTree",
       callback = function()
@@ -391,7 +377,6 @@ return {
       end,
     })
 
-    -- ⚡ Faster startup: 100ms → 50ms
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
         vim.defer_fn(function()
@@ -400,7 +385,6 @@ return {
       end,
     })
 
-    -- ⚡ Faster toggle restore: 300ms → 100ms
     vim.keymap.set("n", "<leader>e", function()
       require("nvim-tree.api").tree.toggle({ float = true })
       
