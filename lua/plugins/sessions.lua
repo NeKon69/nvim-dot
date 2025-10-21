@@ -4,21 +4,12 @@ return {
     local autosession = require("auto-session")
 
     autosession.setup({
-      auto_session_enable_last_session = false,  
+      autoload = true,
+      auto_session_enable_last_session = true,  
       auto_save_enabled = true,        
-      auto_restore_enabled = false,             
+      auto_restore_enabled = true,             
       log_level = "error",
-      pre_save_cmds = { "NvimTreeClose" },      
-      post_restore_cmds = {},                   
     })
-
-    vim.api.nvim_create_user_command("AutoSessionSave", function()
-      autosession.SaveSession()
-    end, { desc = "Save current session" })
-
-    vim.api.nvim_create_user_command("AutoSessionRestore", function()
-      autosession.RestoreSession()
-    end, { desc = "Restore last saved session" })
 
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
