@@ -11,10 +11,8 @@ map("n", "<leader>cv", "<Cmd>CMakeSelectBuildType<CR>", { desc = "Select Variant
 
 map("n", "<leader>co", "<Cmd>CMakeOpenExecutor<CR>", { desc = "Open Output Window" }) -- New!
 map("n", "<leader>cq", "<Cmd>CMakeCloseExecutor<CR>", { desc = "Close Output Window" }) -- New!
-map("n", "<C-h>", "<C-w>h", { desc = "Navigate Left", silent = true })
 map("n", "<C-j>", "<C-w>j", { desc = "Navigate Down", silent = true })
 map("n", "<C-k>", "<C-w>k", { desc = "Navigate Up", silent = true })
-map("n", "<C-l>", "<C-w>l", { desc = "Navigate Right", silent = true })
 map("n", "<C-Up>", "<Cmd>resize +2<CR>", { desc = "Increase window height" })
 map("n", "<C-Down>", "<Cmd>resize -2<CR>", { desc = "Decrease window height" })
 map("n", "<C-Left>", "<Cmd>vertical resize -2<CR>", { desc = "Decrease window width" })
