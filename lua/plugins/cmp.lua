@@ -7,7 +7,6 @@ return {
     "L3MON4D3/LuaSnip",
     "saadparwaiz1/cmp_luasnip",
     "onsails/lspkind.nvim",
-    -- Add this dependency for command line completion
     "hrsh7th/cmp-cmdline",
   },
   config = function()
@@ -41,9 +40,6 @@ return {
         }),
       },
 
-      -- ========================================== --
-      -- ===      THIS IS THE NEW MAGIC PART    === --
-      -- ========================================== --
       sorting = {
         comparators = {
           cmp.config.compare.offset,
