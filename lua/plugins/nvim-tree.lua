@@ -44,12 +44,72 @@ return {
     vim.g.loaded_netrw = 1
     vim.g.loaded_netrwPlugin = 1
 
-    local save_file = vim.fn.stdpath("data") .. "/nvim-tree-state.lua"
+    local log_file = vim.fn.stdpath("cache") .. "/nvim_tree_errors.log"
+    
+    local function log_error(msg)
+      local f = io.open(log_file, "a")
+      if f then
+        f:write(os.date("%Y-%m-%d %H:%M:%S") .. " | ERROR | " .. msg .. "\n")
+        f:close()
+      end
+    end
+    
+    local function find_git_root(path)
+      path = path or vim.fn.getcwd()
+      local current = path
+      while current ~= "/" do
+        if vim.fn.isdirectory(current .. "/.git") == 1 then
+          return current
+        end
+        current = vim.fn.fnamemodify(current, ":h")
+      end
+      return nil
+    end
+    
+    local function get_project_nvim_dir()
+      local git_root = find_git_root()
+      if not git_root then return nil end
+      
+      local nvim_dir = git_root .. "/.nvim"
+      
+      if vim.fn.isdirectory(nvim_dir) == 0 then
+        vim.fn.mkdir(nvim_dir, "p")
+      end
+      
+      return nvim_dir
+    end
+    
+    local function get_state_file_path()
+      local nvim_dir = get_project_nvim_dir()
+      if nvim_dir then
+        return nvim_dir .. "/tree-state"
+      end
+      return nil
+    end
+    
+    local function get_relative_path(abs_path)
+      local git_root = find_git_root()
+      if not git_root then return abs_path end
+      
+      if abs_path:match("^" .. vim.pesc(git_root)) then
+        return abs_path:sub(#git_root + 2)
+      end
+      return abs_path
+    end
+    
+    local function get_absolute_path(rel_path)
+      local git_root = find_git_root()
+      if not git_root then return rel_path end
+      if rel_path:match("^/") then return rel_path end
+      return git_root .. "/" .. rel_path
+    end
+
     local restore_pending = false
 
     local function collect_open_dirs(node, open_paths)
       if node.open and node.type == "directory" then
-        table.insert(open_paths, node.absolute_path)
+        local rel_path = get_relative_path(node.absolute_path)
+        table.insert(open_paths, rel_path)
       end
       if node.nodes then
         for _, child in ipairs(node.nodes) do
@@ -59,6 +119,9 @@ return {
     end
 
     local function save_state()
+      local state_file = get_state_file_path()
+      if not state_file then return end
+      
       local ok_core, core = pcall(require, "nvim-tree.core")
       if not ok_core then return end
 
@@ -70,10 +133,23 @@ return {
         collect_open_dirs(node, open_dirs)
       end
 
-      local f = io.open(save_file, "w")
+      if #open_dirs == 0 then return end
+
+      local f = io.open(state_file, "w")
       if f then
-        f:write("return " .. vim.inspect(open_dirs))
+        local timestamp = os.time()
+        f:write("-- nvim-tree state | last updated: " .. os.date("%Y-%m-%d %H:%M:%S", timestamp) .. "\n")
+        f:write("return {\n")
+        f:write("  timestamp = " .. timestamp .. ",\n")
+        f:write("  open_dirs = {\n")
+        for _, dir in ipairs(open_dirs) do
+          f:write(string.format("    %q,\n", dir))
+        end
+        f:write("  },\n")
+        f:write("}\n")
         f:close()
+      else
+        log_error("Failed to write state file: " .. state_file)
       end
     end
 
@@ -96,10 +172,26 @@ return {
     end
 
     local function restore_state_internal()
-      local ok, open_dirs = pcall(dofile, save_file)
-      if not ok or type(open_dirs) ~= "table" or #open_dirs == 0 then return end
+      local state_file = get_state_file_path()
+      if not state_file then return end
+      
+      local ok, state_data = pcall(dofile, state_file)
+      if not ok or type(state_data) ~= "table" or not state_data.open_dirs then 
+        return 
+      end
+      
+      local open_dirs = state_data.open_dirs
+      if #open_dirs == 0 then return end
 
-      table.sort(open_dirs, function(a, b)
+      local abs_dirs = {}
+      for _, rel_dir in ipairs(open_dirs) do
+        local abs_dir = get_absolute_path(rel_dir)
+        if vim.fn.isdirectory(abs_dir) == 1 then
+          table.insert(abs_dirs, abs_dir)
+        end
+      end
+
+      table.sort(abs_dirs, function(a, b)
         local depth_a = select(2, a:gsub("/", ""))
         local depth_b = select(2, b:gsub("/", ""))
         return depth_a < depth_b
@@ -108,19 +200,24 @@ return {
       local api = require("nvim-tree.api")
 
       local function expand_next(index)
-        if index > #open_dirs then return end
+        if index > #abs_dirs then return end
 
-        local dir = open_dirs[index]
+        local dir = abs_dirs[index]
         
         vim.defer_fn(function()
           local ok_core, core = pcall(require, "nvim-tree.core")
-          if not ok_core then return end
+          if not ok_core then 
+            log_error("Failed to get nvim-tree.core during restore")
+            return 
+          end
 
           local explorer = core.get_explorer()
           if not explorer or not explorer.nodes then return end
 
           local result = expand_node_by_path(explorer.nodes, dir)
-          if result == true then pcall(api.tree.reload) end
+          if result == true then 
+            pcall(api.tree.reload)
+          end
 
           expand_next(index + 1)
         end, 5)
@@ -362,6 +459,7 @@ return {
         },
       },
     })
+    
     vim.api.nvim_create_autocmd("FileType", {
       pattern = "NvimTree",
       callback = function()

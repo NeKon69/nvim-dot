@@ -12,7 +12,6 @@ return {
     local entry_display = require("telescope.pickers.entry_display")
     local sorters = require("telescope.sorters")
     
-    -- ============ ЛОГИРОВАНИЕ ============
     local log_file = vim.fn.stdpath("cache") .. "/smart_picker.log"
     
     local function log(msg)
@@ -23,12 +22,6 @@ return {
       end
     end
     
-    local function clear_log()
-      local f = io.open(log_file, "w")
-      if f then f:close() end
-    end
-    
-    -- ============ GIT ROOT DETECTION ============
     local function find_git_root(path)
       path = path or vim.fn.getcwd()
       local current = path
@@ -41,14 +34,12 @@ return {
       return nil
     end
     
-    -- ============ PATH HELPERS ============
     local function get_relative_path(abs_path)
       local git_root = find_git_root()
       if not git_root then return abs_path end
       
       if abs_path:match("^" .. vim.pesc(git_root)) then
-        local rel = abs_path:sub(#git_root + 2)
-        return rel
+        return abs_path:sub(#git_root + 2)
       end
       return abs_path
     end
@@ -60,7 +51,6 @@ return {
       return git_root .. "/" .. rel_path
     end
     
-    -- ============ РАБОТА С .history ============
     local function get_history_path()
       local git_root = find_git_root()
       if git_root then
@@ -101,9 +91,9 @@ return {
       end
       f:close()
       
-      log("LOADED: " .. #entries .. " entries")
       return entries
     end
+    
     
     local function write_to_history(filepath)
       local history_path = get_history_path()
@@ -119,31 +109,34 @@ return {
       
       local rel_path = get_relative_path(abs_path)
       local timestamp = os.time()
-      local entry = timestamp .. "|" .. rel_path
+      local new_entry = timestamp .. "|" .. rel_path
       
-      local existing = {}
+      
+      local escaped_path = rel_path:gsub("/", "\\/"):gsub("&", "\\&")
+      local sed_cmd = string.format("sed -i '/|%s$/d' '%s' 2>/dev/null", escaped_path, history_path)
+      os.execute(sed_cmd)
+      
+      
+      local content = {}
       local f = io.open(history_path, "r")
       if f then
         for line in f:lines() do
-          local ts, path = line:match("^(%d+)|(.+)$")
-          if path and path ~= rel_path then
-            table.insert(existing, line)
-          end
+          table.insert(content, line)
         end
         f:close()
       end
       
+      
       f = io.open(history_path, "w")
       if f then
-        f:write(entry .. "\n")
-        for _, line in ipairs(existing) do
-          f:write(line .. "\n")
+        f:write(new_entry .. "\n")
+        for i = 1, math.min(999, #content) do
+          f:write(content[i] .. "\n")
         end
         f:close()
       end
     end
     
-    -- ============ ФОРМАТИРОВАНИЕ ВРЕМЕНИ ============
     local function format_time(timestamp)
       local diff = os.time() - timestamp
       
@@ -160,17 +153,21 @@ return {
       end
     end
     
-    -- ============ ПАРСИНГ ЗАПРОСОВ ============
+    
     local function parse_query(query)
       if query == "" then
-        return { type = "all" }
+        return { type = "all", valid = true }
       end
+      
+      
+      query = query:gsub("%s*([&|])%s*", "%1")
       
       local parts = {}
       local current = ""
       for i = 1, #query do
         local char = query:sub(i, i)
         if char == "&" or char == "|" then
+          current = current:gsub("^%s+", ""):gsub("%s+$", "")  
           if current ~= "" then
             table.insert(parts, current)
             table.insert(parts, char)
@@ -180,11 +177,15 @@ return {
           current = current .. char
         end
       end
+      
+      current = current:gsub("^%s+", ""):gsub("%s+$", "")
       if current ~= "" then
         table.insert(parts, current)
       end
       
       local parsed = {}
+      local has_invalid = false
+      
       for _, part in ipairs(parts) do
         if part == "&" or part == "|" then
           table.insert(parsed, { type = "operator", value = part })
@@ -197,15 +198,19 @@ return {
             local unit = part:match("([smhdw])$")
             table.insert(parsed, { type = "time", value = value, unit = unit })
           else
+            
+            if part:match("^%d+%a+$") and not part:match("^%d+[smhdw]$") then
+              has_invalid = true
+              log("WARNING: Invalid query part: " .. part)
+            end
             table.insert(parsed, { type = "text", value = part })
           end
         end
       end
       
-      return { type = "parsed", parts = parsed }
+      return { type = "parsed", parts = parsed, valid = not has_invalid }
     end
     
-    -- ============ ФИЛЬТРАЦИЯ ============
     local function filter_by_index(entries, index, range)
       range = range or 10
       local results = {}
@@ -216,7 +221,6 @@ return {
         table.insert(results, entries[i])
       end
       
-      log("  filter_by_index(" .. index .. "): " .. #results .. " results [#" .. start_idx .. "-#" .. end_idx .. "]")
       return results
     end
     
@@ -235,9 +239,6 @@ return {
         end
       end
       
-      local age_diff = os.time() - entries[closest_idx].timestamp
-      log("  filter_by_time(" .. value .. unit .. "): target=" .. value .. unit .. 
-          ", closest is #" .. closest_idx .. " (age=" .. math.floor(age_diff/86400) .. "d)")
       return filter_by_index(entries, closest_idx, 10), closest_idx
     end
     
@@ -261,7 +262,6 @@ return {
         table.insert(filtered, results[i])
       end
       
-      log("  filter_by_text('" .. text .. "'): " .. #filtered .. " results")
       return filtered
     end
     
@@ -278,9 +278,9 @@ return {
         end
       end
       
-      log("  intersect: " .. #result .. " results")
       return result
     end
+    
     
     local function union_results(set1, set2)
       local paths = {}
@@ -300,143 +300,126 @@ return {
         end
       end
       
-      log("  union: " .. #result .. " results")
+      
+      table.sort(result, function(a, b)
+        return a.original_index < b.original_index
+      end)
+      
       return result
     end
     
-    
--- ============ ПРИМЕНЕНИЕ ЗАПРОСА (ИСПРАВЛЕНО) ============
-local function apply_query(entries, parsed)
-  local default_highlight = {
-    highlight_index = false,
-    highlight_time = false,
-    text_patterns = {},
-    target_index = nil
-  }
-  
-  if parsed.type == "all" then
-    return entries, nil, default_highlight
-  end
-  
-  if #parsed.parts == 0 then
-    return entries, nil, default_highlight
-  end
-  
-  local result = nil
-  local pending_op = nil
-  local highlight_info = {
-    highlight_index = false,
-    highlight_time = false,
-    text_patterns = {},
-    target_index = nil
-  }
-  
-  local all_targets = {}
-  local time_targets = {}  -- Отдельно храним time targets для tiebreaker
-  
-  for i, part in ipairs(parsed.parts) do
-    if part.type == "operator" then
-      pending_op = part.value
-    else
-      local current_result = nil
-      local current_target = nil
+    local function apply_query(entries, parsed)
+      local default_highlight = {
+        highlight_index = false,
+        highlight_time = false,
+        text_patterns = {},
+        target_index = nil
+      }
       
-      if part.type == "index" then
-        current_result = filter_by_index(entries, part.value)
-        current_target = part.value
-        table.insert(all_targets, { type = "index", value = part.value })
-        
-        if not highlight_info.highlight_index then
-          highlight_info.highlight_index = true
-        end
-        
-      elseif part.type == "time" then
-        current_result, current_target = filter_by_time(entries, part.value, part.unit)
-        table.insert(all_targets, { type = "time", value = current_target })
-        table.insert(time_targets, current_target)  -- Запоминаем для tiebreaker
-        
-        if not highlight_info.highlight_time then
-          highlight_info.highlight_time = true
-        end
-        
-      elseif part.type == "text" then
-        current_result = filter_by_text(result or entries, part.value)
-        table.insert(highlight_info.text_patterns, part.value)
+      if parsed.type == "all" then
+        return entries, nil, default_highlight
       end
       
-      if result == nil then
-        result = current_result
-      elseif pending_op == "&" then
-        result = intersect_results(result, current_result)
-        pending_op = nil
-      elseif pending_op == "|" then
-        result = union_results(result, current_result)
-        pending_op = nil
-      end
-    end
-  end
-  
-  -- УНИВЕРСАЛЬНЫЙ BEST MATCH с tiebreaker по времени
-  if #all_targets > 0 and result and #result > 0 then
-    log(">>> FINDING BEST MATCH: " .. #all_targets .. " targets")
-    
-    local best_entry = nil
-    local best_score = math.huge
-    local best_time_dist = math.huge
-    
-    for _, entry in ipairs(result) do
-      local total_score = 0
-      local time_dist = 0
-      
-      for _, target in ipairs(all_targets) do
-        total_score = total_score + math.abs(entry.original_index - target.value)
+      if #parsed.parts == 0 then
+        return entries, nil, default_highlight
       end
       
-      -- Считаем расстояние до времени для tiebreaker
-      if #time_targets > 0 then
-        for _, time_target in ipairs(time_targets) do
-          time_dist = time_dist + math.abs(entry.original_index - time_target)
+      local result = nil
+      local pending_op = nil
+      local highlight_info = {
+        highlight_index = false,
+        highlight_time = false,
+        text_patterns = {},
+        target_index = nil
+      }
+      
+      local all_targets = {}
+      local time_targets = {}
+      
+      for i, part in ipairs(parsed.parts) do
+        if part.type == "operator" then
+          pending_op = part.value
+        else
+          local current_result = nil
+          local current_target = nil
+          
+          if part.type == "index" then
+            current_result = filter_by_index(entries, part.value)
+            current_target = part.value
+            table.insert(all_targets, { type = "index", value = part.value })
+            
+            if not highlight_info.highlight_index then
+              highlight_info.highlight_index = true
+            end
+            
+          elseif part.type == "time" then
+            current_result, current_target = filter_by_time(entries, part.value, part.unit)
+            table.insert(all_targets, { type = "time", value = current_target })
+            table.insert(time_targets, current_target)
+            
+            if not highlight_info.highlight_time then
+              highlight_info.highlight_time = true
+            end
+            
+          elseif part.type == "text" then
+            current_result = filter_by_text(result or entries, part.value)
+            table.insert(highlight_info.text_patterns, part.value)
+          end
+          
+          if result == nil then
+            result = current_result
+          elseif pending_op == "&" then
+            result = intersect_results(result, current_result)
+            pending_op = nil
+          elseif pending_op == "|" then
+            result = union_results(result, current_result)
+            pending_op = nil
+          end
         end
       end
       
-      log("  #" .. entry.original_index .. ": score=" .. total_score .. 
-          (#time_targets > 0 and (", time_dist=" .. time_dist) or ""))
-      
-      -- Выбираем файл с меньшим score, при равном - с меньшим time_dist
-      if total_score < best_score or 
-         (total_score == best_score and time_dist < best_time_dist) then
-        best_score = total_score
-        best_time_dist = time_dist
-        best_entry = entry
+      if #all_targets > 0 and result and #result > 0 then
+        local best_entry = nil
+        local best_score = math.huge
+        local best_time_dist = math.huge
+        
+        for _, entry in ipairs(result) do
+          local total_score = 0
+          local time_dist = 0
+          
+          for _, target in ipairs(all_targets) do
+            total_score = total_score + math.abs(entry.original_index - target.value)
+          end
+          
+          if #time_targets > 0 then
+            for _, time_target in ipairs(time_targets) do
+              time_dist = time_dist + math.abs(entry.original_index - time_target)
+            end
+          end
+          
+          if total_score < best_score or 
+             (total_score == best_score and time_dist < best_time_dist) then
+            best_score = total_score
+            best_time_dist = time_dist
+            best_entry = entry
+          end
+        end
+        
+        if best_entry then
+          highlight_info.target_index = best_entry.original_index
+        end
       end
+      
+      local cursor_target = highlight_info.target_index
+      
+      return result or entries, cursor_target, highlight_info
     end
     
-    if best_entry then
-      highlight_info.target_index = best_entry.original_index
-      log(">>> BEST MATCH: #" .. best_entry.original_index .. 
-          " (score=" .. best_score .. 
-          (#time_targets > 0 and (", time_dist=" .. best_time_dist) or "") .. ")")
-    end
-  end
-  
-  log("HIGHLIGHT: index=" .. tostring(highlight_info.highlight_index) .. 
-      ", time=" .. tostring(highlight_info.highlight_time) .. 
-      ", target=#" .. tostring(highlight_info.target_index))
-  
-  -- Для курсора используем BEST MATCH, а не первую цель!
-  local cursor_target = highlight_info.target_index
-  
-  return result or entries, cursor_target, highlight_info
-end
-    
-    -- ============ SMART PICKER ============
     local function smart_file_picker()
-      clear_log()
-      log("=== SMART PICKER STARTED ===")
-      
       local history_entries = read_history()
       
       if #history_entries == 0 then
+        log("WARNING: No history entries found, falling back to find_files")
         builtin.find_files()
         return
       end
@@ -450,6 +433,9 @@ end
         text_patterns = {},
         target_index = nil
       }
+      
+      
+      local is_query_valid = true
       
       local displayer = entry_display.create {
         separator = "  ",
@@ -521,21 +507,28 @@ end
             }
             
             local current_picker = action_state.get_current_picker(prompt_bufnr)
-            current_picker:refresh(
-              finders.new_table {
-                results = new_results,
-                entry_maker = function(entry)
-                  return {
-                    value = entry,
-                    display = make_display,
-                    ordinal = "",
-                    path = entry.path,
-                    original_index = entry.original_index,
-                  }
-                end,
-              },
-              { reset_prompt = false }
-            )
+            local ok, err = pcall(function()
+              current_picker:refresh(
+                finders.new_table {
+                  results = new_results,
+                  entry_maker = function(entry)
+                    return {
+                      value = entry,
+                      display = make_display,
+                      ordinal = "",
+                      path = entry.path,
+                      original_index = entry.original_index,
+                    }
+                  end,
+                },
+                { reset_prompt = false }
+              )
+            end)
+            
+            if not ok then
+              log("ERROR: refresh_picker failed - " .. tostring(err))
+              return
+            end
             
             if move_to_idx then
               vim.schedule(function()
@@ -556,15 +549,28 @@ end
           vim.api.nvim_create_autocmd("TextChangedI", {
             buffer = prompt_bufnr,
             callback = function()
-              local current_picker = action_state.get_current_picker(prompt_bufnr)
-              local prompt = current_picker:_get_prompt()
+              local ok, err = pcall(function()
+                local current_picker = action_state.get_current_picker(prompt_bufnr)
+                local prompt = current_picker:_get_prompt()
+                
+                local parsed = parse_query(prompt)
+                
+                if not parsed.valid then
+                  vim.api.nvim_set_hl(0, "TelescopePromptPrefix", { fg = "#ff5555", bg = "NONE" })
+                  is_query_valid = false
+                else
+                  vim.api.nvim_set_hl(0, "TelescopePromptPrefix", { fg = "#b464ff", bg = "NONE" })
+                  is_query_valid = true
+                end
+                
+                local filtered, target, highlight_info = apply_query(history_entries, parsed)
+                
+                refresh_picker(filtered, target, highlight_info)
+              end)
               
-              log("=== PROMPT: '" .. prompt .. "' ===")
-              
-              local parsed = parse_query(prompt)
-              local filtered, target, highlight_info = apply_query(history_entries, parsed)
-              
-              refresh_picker(filtered, target, highlight_info)
+              if not ok then
+                log("ERROR: TextChangedI callback failed - " .. tostring(err))
+              end
             end,
           })
           
@@ -575,7 +581,6 @@ end
       picker:find()
     end
     
-    -- ============ BufEnter HOOK ============
     vim.api.nvim_create_autocmd("BufEnter", {
       pattern = "*",
       callback = function()
@@ -586,9 +591,8 @@ end
       end,
     })
     
-    -- ============ TELESCOPE SETUP ============
     vim.keymap.set("n", "<leader>ff", builtin.find_files, { desc = "🔍 Telescope: Find Files" })
-    vim.keymap.set("n", "<leader>fs", smart_file_picker, { desc = "📜 Smart File Picker (History)" })
+    vim.keymap.set("n", "<leader>fs", smart_file_picker, { desc = "📜 Smart File Picker" })
     
     require("telescope").setup{
       defaults = {
