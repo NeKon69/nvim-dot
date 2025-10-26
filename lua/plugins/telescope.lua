@@ -54,7 +54,11 @@ return {
     local function get_history_path()
       local git_root = find_git_root()
       if git_root then
-        return git_root .. "/.history"
+        local nvim_dir = git_root .. "/.nvim"
+        if vim.fn.isdirectory(nvim_dir) == 0 then
+          vim.fn.mkdir(nvim_dir, "p")
+        end
+        return nvim_dir .. "/history"
       end
       return nil
     end

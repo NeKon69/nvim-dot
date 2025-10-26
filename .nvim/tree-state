@@ -1,0 +1,8 @@
+-- nvim-tree state | last updated: 2025-10-26 15:07:48
+return {
+  timestamp = 1761480468,
+  open_dirs = {
+    "lua",
+    "lua/plugins",
+  },
+}

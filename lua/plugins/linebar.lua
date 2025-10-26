@@ -89,8 +89,20 @@ return {
     
     local map = vim.keymap.set
     
-    map("n", "<A-,>", "<Cmd>BufferLineCyclePrev<CR>", {silent = true, desc = "Previous buffer"})
-    map("n", "<A-.>", "<Cmd>BufferLineCycleNext<CR>", {silent = true, desc = "Next buffer"})
+    -- Функция для логирования состояния bufferline
+    local function log_bufferline_state()
+    end
+    
+    map("n", "<A-,>", function()
+      vim.cmd("BufferLineCyclePrev")
+      vim.defer_fn(log_bufferline_state, 50)
+    end, {silent = true, desc = "Previous buffer"})
+    
+    map("n", "<A-.>", function()
+      vim.cmd("BufferLineCycleNext")
+      vim.defer_fn(log_bufferline_state, 50)
+    end, {silent = true, desc = "Next buffer"})
+    
     map("n", "<A-<>", "<Cmd>BufferLineMovePrev<CR>", {silent = true, desc = "Move buffer left"})
     map("n", "<A->>", "<Cmd>BufferLineMoveNext<CR>", {silent = true, desc = "Move buffer right"})
     
@@ -118,21 +130,32 @@ return {
       })
     end, {silent = true, desc = "Find buffers"})
     
-    -- Smart window navigation
+    -- Smart window navigation (FIXED + Logging)
     map("n", "<C-h>", function()
       local curr_win = vim.fn.winnr()
       vim.cmd("wincmd h")
       if curr_win == vim.fn.winnr() then
         vim.cmd("BufferLineCyclePrev")
+        vim.defer_fn(function()
+          vim.cmd("redrawtabline")
+          log_bufferline_state()
+        end, 50)
       end
-    end, {silent = true, desc = "Left window or prev buffer"})
-    
+    end, { silent = true, desc = "Left window or prev buffer" })
+
     map("n", "<C-l>", function()
       local curr_win = vim.fn.winnr()
       vim.cmd("wincmd l")
       if curr_win == vim.fn.winnr() then
         vim.cmd("BufferLineCycleNext")
+        vim.defer_fn(function()
+          vim.cmd("redrawtabline")
+          log_bufferline_state()
+        end, 50)
       end
-    end, {silent = true, desc = "Right window or next buffer"})
+    end, { silent = true, desc = "Right window or next buffer" })
+    
+    -- Команда для ручного дебага
+    vim.api.nvim_create_user_command("BufferlineDebug", log_bufferline_state, {})
   end
 }
