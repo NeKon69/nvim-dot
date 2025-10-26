@@ -18,19 +18,26 @@ return {
 		config = function()
 			require("mason-tool-installer").setup({
 				ensure_installed = {
+					-- Форматтеры
 					"clang-format",
 					"stylua",
 					"black",
 					"rustfmt",
+
+					-- LSP серверы
 					"cmake-language-server",
-					"cmakelang",
-
-					"sonarlint-language-server",
-					"cmakelint",
 					"glsl_analyzer",
-					"asmfmt",
 
+					-- Линтеры
+					"cmakelang",
+					"cmakelint",
+
+					-- Отладчики
+					"codelldb", -- Используем codelldb вместо cpptools
 					"cpptools",
+
+					-- Утилиты
+					"asmfmt",
 				},
 				auto_update = false,
 				run_on_start = true,

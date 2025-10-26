@@ -1,34 +1,76 @@
 return {
-  -- This is the orchestrator plugin
-  "williamboman/mason-lspconfig.nvim",
-  dependencies = {
-    "neovim/nvim-lspconfig",
-    "williamboman/mason.nvim",
-  },
-  opts = {
-    ensure_installed = { "clangd", "glslls" },
+	"neovim/nvim-lspconfig",
+	event = { "BufReadPre", "BufNewFile" },
+	dependencies = {
+		"hrsh7th/cmp-nvim-lsp",
+		{ "antosha417/nvim-lsp-file-operations", config = true },
+	},
+	config = function()
+		-- Импортируем пользовательские настройки
+		local user_lspconfig = require("user.lspconfig")
 
-    handlers = {
-      function(server_name)
-        local lsp_util = require("user.lspconfig")
-        require("lspconfig")[server_name].setup({
-          capabilities = lsp_util.capabilities,
-          on_attach = lsp_util.on_attach,
-        })
-      end,
+		-- Новый API: используем vim.lsp.config вместо require('lspconfig')
 
-      ["lua_ls"] = function()
-        local lsp_util = require("user.lspconfig")
-        require("lspconfig").lua_ls.setup({
-          capabilities = lsp_util.capabilities,
-          on_attach = lsp_util.on_attach,
-          settings = {
-            Lua = {
-              diagnostics = { globals = { "vim" } },
-            },
-          },
-        })
-      end,
-    },
-  },
+		-- Настройка clangd (C++)
+		vim.lsp.config("clangd", {
+			cmd = { "clangd" },
+			filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
+			root_markers = {
+				".clangd",
+				".clang-tidy",
+				".clang-format",
+				"compile_commands.json",
+				"compile_flags.txt",
+				".git",
+			},
+			capabilities = user_lspconfig.capabilities,
+		})
+
+		-- Настройка glslls (GLSL)
+		vim.lsp.config("glslls", {
+			cmd = { "glslls", "--stdin" },
+			filetypes = { "glsl", "vert", "frag", "geom", "tesc", "tese", "comp" },
+			capabilities = user_lspconfig.capabilities,
+		})
+
+		-- Настройка lua_ls (Lua)
+		vim.lsp.config("lua_ls", {
+			cmd = { "lua-language-server" },
+			filetypes = { "lua" },
+			root_markers = {
+				".luarc.json",
+				".luarc.jsonc",
+				".luacheckrc",
+				".stylua.toml",
+				"stylua.toml",
+				"selene.toml",
+				"selene.yml",
+				".git",
+			},
+			capabilities = user_lspconfig.capabilities,
+			settings = {
+				Lua = {
+					runtime = {
+						version = "LuaJIT",
+					},
+					diagnostics = {
+						globals = { "vim" },
+					},
+					workspace = {
+						library = {
+							vim.env.VIMRUNTIME,
+							"${3rd}/luv/library",
+						},
+						checkThirdParty = false,
+					},
+					telemetry = {
+						enable = false,
+					},
+				},
+			},
+		})
+
+		-- Включаем LSP серверы (новый способ)
+		vim.lsp.enable({ "clangd", "glslls", "lua_ls" })
+	end,
 }
