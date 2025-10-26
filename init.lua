@@ -1,5 +1,16 @@
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 vim.opt.cmdheight = 2
+vim.opt.sessionoptions = {
+  "buffers",    
+  "curdir",     
+  "tabpages",   
+  "winsize",    
+  "help",       
+  "globals",    
+  "skiprtp",    
+  "folds",      
+}
+vim.opt.swapfile = false
 vim.opt.shortmess:append("I")
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({

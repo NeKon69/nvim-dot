@@ -1,12 +1,10 @@
 return {
-  -- Code commenting
   {
     "numToStr/Comment.nvim",
     opts = {},
     lazy = false,
   },
 
-  -- Surround text objects with (), "", etc.
   {
     "kylechui/nvim-surround",
     version = "*",
@@ -16,7 +14,6 @@ return {
     end,
   },
 
-  -- Auto-save functionality
   {
     "Pocco81/auto-save.nvim",
     config = function()

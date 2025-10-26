@@ -3,42 +3,6 @@ return {
   version = "*",
   dependencies = {
     "nvim-tree/nvim-web-devicons",
-    {
-      "stevearc/dressing.nvim",
-      opts = {
-        input = {
-          start_mode = "insert",
-          relative = "cursor",
-          border = "rounded",
-          min_width = { 30, 0.3 },
-          max_width = { 140, 0.9 },
-          win_options = {
-            winblend = 0,
-            wrap = false,
-          },
-          get_config = function(opts)
-            if opts.default and opts.prompt and opts.prompt:match("Rename") then
-              local filename = opts.default
-              local is_file = filename:match("%.%w+$")
-              
-              if is_file then
-                vim.schedule(function()
-                  local dot_pos = filename:reverse():find("%.")
-                  if dot_pos then
-                    local select_end = #filename - dot_pos - 1
-                    vim.api.nvim_feedkeys(
-                      vim.api.nvim_replace_termcodes("<Home><C-o>v" .. select_end .. "l", true, false, true),
-                      "n",
-                      false
-                    )
-                  end
-                end)
-              end
-            end
-          end,
-        },
-      },
-    },
   },
   config = function()
     vim.g.loaded_netrw = 1
