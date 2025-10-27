@@ -14,7 +14,7 @@ return {
 			lightbulb = {
 				enable = true,
 				sign = true,
-				virtual_text = false,
+				virtual_text = true,
 			},
 			code_action = {
 				num_shortcut = true,

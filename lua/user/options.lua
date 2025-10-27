@@ -24,12 +24,12 @@ opt.signcolumn = "yes"
 opt.wrap = false
 opt.cursorline = true
 
-opt.updatetime = 50
+opt.updatetime = 500
 opt.undofile = true
 
-opt.cmdheight = 2  
+opt.cmdheight = 2
 opt.shortmess:append("I")
-opt.shortmess:append("c") 
+opt.shortmess:append("c")
 opt.shortmess:append("S")
 
 vim.g.mapleader = " "

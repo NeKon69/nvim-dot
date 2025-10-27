@@ -18,7 +18,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		local bufnr = event.buf
 		local opts = { buffer = bufnr, remap = false, silent = true }
 
-		-- Навигация
 		vim.keymap.set(
 			"n",
 			"gd",
@@ -50,16 +49,40 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			vim.tbl_extend("force", opts, { desc = "LSP: Go to type definition" })
 		)
 
-		-- Документация
 		vim.keymap.set("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", opts, { desc = "LSP: Hover" }))
-		vim.keymap.set(
-			"n",
-			"<C-k>",
-			vim.lsp.buf.signature_help,
-			vim.tbl_extend("force", opts, { desc = "LSP: Signature" })
-		)
 
-		-- Рефакторинг
+		local hover_timer = nil
+		local wait_time = 500
+		vim.api.nvim_create_autocmd("CursorHold", {
+			buffer = bufnr,
+			callback = function()
+				if vim.fn.mode() == "n" and vim.fn.pumvisible() == 0 then
+					if hover_timer then
+						vim.fn.timer_stop(hover_timer)
+					end
+					hover_timer = vim.fn.timer_start(wait_time, function()
+						if client and client.server_capabilities.hoverProvider then
+							local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+							vim.lsp.buf_request(bufnr, "textDocument/hover", params, function(err, result)
+								if err or not result or not result.contents then
+									return
+								end
+								local markdown_lines = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
+								if #markdown_lines == 0 or (markdown_lines[1] == "" and #markdown_lines == 1) then
+									return
+								end
+								vim.lsp.util.open_floating_preview(markdown_lines, "markdown", {
+									border = "rounded",
+									focusable = false,
+								})
+							end)
+						end
+					end)
+				end
+			end,
+			desc = "Show hover documentation on hold",
+		})
+
 		vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "LSP: Rename" }))
 		vim.keymap.set(
 			{ "n", "v" },
@@ -68,25 +91,16 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			vim.tbl_extend("force", opts, { desc = "LSP: Code action" })
 		)
 
-		-- Форматирование
 		vim.keymap.set("n", "<leader>fm", function()
 			vim.lsp.buf.format({ async = true })
 		end, vim.tbl_extend("force", opts, { desc = "LSP: Format" }))
 
-		-- Диагностика
-		vim.keymap.set(
-			"n",
-			"[d",
-			vim.diagnostic.goto_prev,
-			vim.tbl_extend("force", opts, { desc = "Previous diagnostic" })
-		)
+		vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, vim.tbl_extend(
+			"force",
+			opts,
+			{ desc = "Previous diagnostic" }
+		))
 		vim.keymap.set("n", "]d", vim.diagnostic.goto_next, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
-		vim.keymap.set(
-			"n",
-			"<leader>e",
-			vim.diagnostic.open_float,
-			vim.tbl_extend("force", opts, { desc = "Show diagnostic" })
-		)
 
 		if client and client.server_capabilities.codeLensProvider then
 			vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "InsertLeave" }, {
@@ -103,7 +117,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			)
 		end
 
-		-- Document Highlight
 		if client and client.server_capabilities.documentHighlightProvider then
 			local highlight_group = vim.api.nvim_create_augroup("lsp_document_highlight_" .. bufnr, { clear = false })
 			vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
@@ -120,7 +133,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	end,
 })
 
--- Настройка диагностики
 vim.diagnostic.config({
 	virtual_text = {
 		spacing = 4,
@@ -139,15 +151,16 @@ vim.diagnostic.config({
 	severity_sort = true,
 	float = {
 		border = "rounded",
-		source = true,
+		source = "if_many",
 	},
 })
 
-local orig_util_open_floating_preview = vim.lsp.util.open_floating_preview
+local _open_floating_preview = vim.lsp.util.open_floating_preview
 function vim.lsp.util.open_floating_preview(contents, syntax, opts, ...)
 	opts = opts or {}
 	opts.border = opts.border or "rounded"
-	return orig_util_open_floating_preview(contents, syntax, opts, ...)
+	opts.focusable = false
+	return _open_floating_preview(contents, syntax, opts, ...)
 end
 
 return M

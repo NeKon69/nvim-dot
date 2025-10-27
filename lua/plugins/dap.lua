@@ -113,16 +113,14 @@ return {
 		map("n", "<F11>", dap.step_into, { desc = "DAP: Step Into" })
 		map("n", "<S-F11>", dap.step_out, { desc = "DAP: Step Out" })
 
-		-- Расширенные брейкпоинты
-		map("n", "<leader>b", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
-		map("n", "<leader>B", function()
+		map("n", "<leader>db", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
+		map("n", "<leader>dB", function()
 			dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
 		end, { desc = "DAP: Conditional Breakpoint" })
 		map("n", "<leader>lp", function()
 			dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
 		end, { desc = "DAP: Log Point" })
 
-		-- UI управление
 		map("n", "<leader>do", dapui.toggle, { desc = "DAP: Toggle UI" })
 		map("n", "<leader>de", dapui.eval, { desc = "DAP: Evaluate" })
 		map("v", "<leader>de", dapui.eval, { desc = "DAP: Evaluate selection" })
