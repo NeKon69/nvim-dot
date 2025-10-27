@@ -1,8 +1,7 @@
--- nvim-tree state | last updated: 2025-10-27 16:57:32
+-- nvim-tree state | last updated: 2025-10-27 18:07:27
 return {
-  timestamp = 1761573452,
+  timestamp = 1761577647,
   open_dirs = {
-    ".nvim",
     "lua",
     "lua/plugins",
     "lua/user",

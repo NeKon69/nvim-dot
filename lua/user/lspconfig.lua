@@ -6,7 +6,6 @@ M.capabilities.textDocument.completion.completionItem.snippetSupport = true
 M.capabilities.textDocument.completion.completionItem.resolveSupport = {
 	properties = { "documentation", "detail", "additionalTextEdits" },
 }
-
 M.capabilities.textDocument.codeLens = {
 	dynamicRegistration = false,
 }
@@ -17,6 +16,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		local client = vim.lsp.get_client_by_id(event.data.client_id)
 		local bufnr = event.buf
 		local opts = { buffer = bufnr, remap = false, silent = true }
+
+		if client and client.server_capabilities.inlayHintProvider then
+			vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+		end
 
 		vim.keymap.set(
 			"n",
@@ -53,6 +56,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
 		local hover_timer = nil
 		local wait_time = 500
+
 		vim.api.nvim_create_autocmd("CursorHold", {
 			buffer = bufnr,
 			callback = function()
@@ -62,25 +66,31 @@ vim.api.nvim_create_autocmd("LspAttach", {
 					end
 					hover_timer = vim.fn.timer_start(wait_time, function()
 						if client and client.server_capabilities.hoverProvider then
-							local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-							vim.lsp.buf_request(bufnr, "textDocument/hover", params, function(err, result)
+							local params = vim.lsp.util.make_position_params()
+							client.request("textDocument/hover", params, function(err, result)
 								if err or not result or not result.contents then
 									return
 								end
+
 								local markdown_lines = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
-								if #markdown_lines == 0 or (markdown_lines[1] == "" and #markdown_lines == 1) then
+								markdown_lines = vim.tbl_filter(function(line)
+									return line and line:match("%S")
+								end, markdown_lines)
+
+								if #markdown_lines == 0 then
 									return
 								end
+
 								vim.lsp.util.open_floating_preview(markdown_lines, "markdown", {
 									border = "rounded",
 									focusable = false,
+									max_height = 20,
 								})
-							end)
+							end, bufnr)
 						end
 					end)
 				end
 			end,
-			desc = "Show hover documentation on hold",
 		})
 
 		vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "LSP: Rename" }))
@@ -95,11 +105,12 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			vim.lsp.buf.format({ async = true })
 		end, vim.tbl_extend("force", opts, { desc = "LSP: Format" }))
 
-		vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, vim.tbl_extend(
-			"force",
-			opts,
-			{ desc = "Previous diagnostic" }
-		))
+		vim.keymap.set(
+			"n",
+			"[d",
+			vim.diagnostic.goto_prev,
+			vim.tbl_extend("force", opts, { desc = "Previous diagnostic" })
+		)
 		vim.keymap.set("n", "]d", vim.diagnostic.goto_next, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
 
 		if client and client.server_capabilities.codeLensProvider then

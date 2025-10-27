@@ -23,8 +23,6 @@ end
 
 map("n", "<C-j>", smart_jk("j", "cnext"), { desc = "Down window or next in qf-list", silent = true })
 map("n", "<C-k>", smart_jk("k", "cprevious"), { desc = "Up window or prev in qf-list", silent = true })
-map("n", "<C-j>", smart_jk("j", "cnext"), { desc = "Down window or next in qf-list", silent = true })
-map("n", "<C-k>", smart_jk("k", "cprevious"), { desc = "Up window or prev in qf-list", silent = true })
 map("n", "<C-Up>", "<Cmd>resize +2<CR>", { desc = "Increase window height" })
 map("n", "<C-Down>", "<Cmd>resize -2<CR>", { desc = "Decrease window height" })
 map("n", "<C-Left>", "<Cmd>vertical resize -2<CR>", { desc = "Decrease window width" })
@@ -56,7 +54,8 @@ map("n", "<leader>hu", "<cmd>Gitsigns undo_stage_hunk<CR>", { desc = "Git: Undo 
 map("n", "<leader>hp", "<cmd>Gitsigns preview_hunk<CR>", { desc = "Git: Preview Hunk" })
 map("n", "ee", "<cmd>close<CR>", { desc = "Close Window/Buffer" })
 vim.cmd("command! Q qa")
-map("n", "<leader><ESC><ESC>", "<cmd>qa<CR>", { desc = "Quit Neovim" })
+map("n", "<leader>ll", "<cmd>qa<CR>", { desc = "Quit Neovim" })
+map("n", "<leader>q", ":close<CR>", { desc = "Close Curren Window" })
 vim.keymap.set("n", "<leader>nf", function()
 	require("user.templates").create_from_template()
 end, { desc = "New file from template" })
@@ -69,15 +68,7 @@ vim.api.nvim_create_autocmd("User", {
 	end,
 	desc = "Ensure nvim-tree keymap is not overridden",
 })
-for i = 1, 9 do
-	vim.keymap.set(
-		"n",
-		"<A-" .. i .. ">",
-		"<Cmd>BufferLineGoToBuffer " .. i .. "<CR>",
-		{ silent = true, desc = "Go to buffer " .. i }
-	)
-end
-vim.keymap.set("n", "<A-0>", "<Cmd>BufferLineGoToBuffer -1<CR>", { silent = true, desc = "Go to last buffer" })
-vim.keymap.set("n", "<A-,>", "<Cmd>BufferLineCyclePrev<CR>", { silent = true, desc = "Previous buffer" })
-vim.keymap.set("n", "<A-.>", "<Cmd>BufferLineCycleNext<CR>", { silent = true, desc = "Next buffer" })
-vim.keymap.set("n", "<A-c>", "<Cmd>bdelete<CR>", { silent = true, desc = "Close buffer" })
+map("n", "<leader>fo", "<cmd>Telescope oldfiles<CR>", { desc = "Find Old Files" })
+map({ "n", "t" }, "<C-/>", function()
+	Snacks.terminal()
+end, { desc = "Toggle Terminal" })

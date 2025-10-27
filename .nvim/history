@@ -1,9 +1,12 @@
-1761573529|lua/plugins/snacks.lua
-1761573528|lua/user/templates.lua
-1761573527|lua/plugins/nvim-tree.lua
+1761577998|lua/user/keymaps.lua
+1761575455|lua/plugins/lspconfig.lua
+1761575455|lua/plugins/dashboard.lua
+1761575426|lua/user/lspconfig.lua
+1761575426|lua/plugins/snacks.lua
+1761575425|lua/user/templates.lua
+1761575424|lua/plugins/nvim-tree.lua
 1761573457|.nvim/tree-state
 1761573456|.nvim/history
-1761573452|lua/user/keymaps.lua
 1761573365|lua/user/snacks.lua
 1761572475|lua/plugins/telescope.lua
 1761572171|lua/plugins/signature.lua
@@ -11,9 +14,7 @@
 1761572142|lua/plugins/lspkind.lua
 1761572141|lua/plugins/linebar.lua
 1761572141|lua/plugins/persistence.lua
-1761572141|lua/user/lspconfig.lua
 1761571990|lua/plugins/lspsaga.lua
-1761571989|lua/plugins/lspconfig.lua
 1761568763|lua/plugins/dap.lua
 1761568405|lua/plugins/luasnip.lua
 1761568404|lua/plugins/formatting.lua
