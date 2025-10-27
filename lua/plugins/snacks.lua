@@ -2,13 +2,53 @@ return {
 	"folke/snacks.nvim",
 	priority = 1000,
 	lazy = false,
-
 	opts = {
-		bigfile = { enabled = true },
-		notifier = {
+		animate = {
 			enabled = true,
-			timeout = 3000,
+			duration = 300,
+			fps = 60,
+			easing = "outCubic",
 		},
+
+		debug = {
+			enabled = true,
+			condition = function()
+				local ext = vim.fn.expand("%:e")
+				return ext ~= "cpp" and ext ~= "cu" and ext ~= "cuh" and ext ~= "c" and ext ~= "h" and ext ~= "hpp"
+			end,
+		},
+
+		image = {
+			enabled = true,
+			formats = {
+				"png",
+				"jpg",
+				"jpeg",
+				"gif",
+				"bmp",
+				"webp",
+				"tiff",
+				"heic",
+				"avif",
+				"mp4",
+				"mov",
+				"avi",
+				"mkv",
+				"webm",
+				"pdf",
+				"icns",
+			},
+		},
+
+		input = { enabled = true },
+		rename = { enabled = true },
+		scope = { enabled = true },
+		terminal = { enabled = true },
+		toggle = { enabled = true },
+		win = { enabled = true },
+
+		bigfile = { enabled = true },
+		notifier = { enabled = true, timeout = 3000 },
 		quickfile = { enabled = true },
 		statuscolumn = { enabled = true },
 		indent = { enabled = true },
@@ -38,7 +78,6 @@ return {
 			end,
 			desc = "❌ Dismiss Notifications",
 		},
-
 		{
 			"<leader>.",
 			function()
@@ -53,7 +92,6 @@ return {
 			end,
 			desc = "📝 Select Scratch",
 		},
-
 		{
 			"<leader>z",
 			function()
@@ -77,7 +115,6 @@ return {
 				_G.dd = function(...)
 					Snacks.debug.inspect(...)
 				end
-
 				_G.bt = function()
 					Snacks.debug.backtrace()
 				end
@@ -103,11 +140,7 @@ return {
 					:map("<leader>uc")
 				Snacks.toggle.treesitter():map("<leader>uT")
 				Snacks.toggle
-					.option("background", {
-						off = "light",
-						on = "dark",
-						name = "Dark Background",
-					})
+					.option("background", { off = "light", on = "dark", name = "Dark Background" })
 					:map("<leader>ub")
 				Snacks.toggle.inlay_hints():map("<leader>uh")
 				Snacks.toggle.indent():map("<leader>ug")
