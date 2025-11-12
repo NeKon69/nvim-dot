@@ -1,4 +1,7 @@
-1761577998|lua/user/keymaps.lua
+1762951021|lua/user/keymaps.lua
+1762950989|lua/plugins/treesitter.lua
+1762886093|lua/plugins/formatting.lua
+1762885223|lua/user/options.lua
 1761575455|lua/plugins/lspconfig.lua
 1761575455|lua/plugins/dashboard.lua
 1761575426|lua/user/lspconfig.lua
@@ -10,16 +13,13 @@
 1761573365|lua/user/snacks.lua
 1761572475|lua/plugins/telescope.lua
 1761572171|lua/plugins/signature.lua
-1761572142|lua/user/options.lua
 1761572142|lua/plugins/lspkind.lua
 1761572141|lua/plugins/linebar.lua
 1761572141|lua/plugins/persistence.lua
 1761571990|lua/plugins/lspsaga.lua
 1761568763|lua/plugins/dap.lua
 1761568405|lua/plugins/luasnip.lua
-1761568404|lua/plugins/formatting.lua
 1761568396|init.lua
-1761568396|lua/plugins/treesitter.lua
 1761568396|lua/plugins/gitsigns.lua
 1761568385|lua/plugins/navigation.lua
 1761568385|lua/plugins/trouble.lua

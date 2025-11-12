@@ -72,3 +72,21 @@ map("n", "<leader>fo", "<cmd>Telescope oldfiles<CR>", { desc = "Find Old Files" 
 map({ "n", "t" }, "<C-/>", function()
 	Snacks.terminal()
 end, { desc = "Toggle Terminal" })
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "python",
+	callback = function()
+		vim.opt_local.indentkeys:remove("<:>")
+		vim.opt_local.indentkeys:remove("0#")
+	end,
+})
+vim.keymap.set("n", "<leader>bp", "<cmd>bprevious<cr>", { desc = "Previous buffer" })
+vim.keymap.set("n", "<leader>bn", "<cmd>bnext<cr>", { desc = "Next buffer" })
+vim.keymap.set("n", "<leader>bb", "<C-^>", { desc = "Toggle last buffer" })
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "python",
+	callback = function()
+		vim.opt_local.indentkeys:remove("<:>")
+		vim.opt_local.indentkeys:remove("0#")
+		vim.opt_local.indentkeys:remove("<CR>")
+	end,
+})

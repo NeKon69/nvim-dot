@@ -54,7 +54,6 @@ return {
 						workspace = {
 							library = {
 								vim.env.VIMRUNTIME,
-
 								"${3rd}/luv/library",
 							},
 							checkThirdParty = false,
@@ -66,7 +65,32 @@ return {
 				},
 			})
 
-			vim.lsp.enable({ "clangd", "glslls", "lua_ls" })
+			-- НОВОЕ: Python LSP
+			vim.lsp.config("pyright", {
+				cmd = { "pyright-langserver", "--stdio" },
+				filetypes = { "python" },
+				root_markers = {
+					"pyproject.toml",
+					"setup.py",
+					"setup.cfg",
+					"requirements.txt",
+					"Pipfile",
+					".git",
+				},
+				capabilities = user_lspconfig.capabilities,
+				settings = {
+					python = {
+						analysis = {
+							autoSearchPaths = true,
+							useLibraryCodeForTypes = true,
+							diagnosticMode = "workspace",
+							typeCheckingMode = "basic",
+						},
+					},
+				},
+			})
+
+			vim.lsp.enable({ "clangd", "glslls", "lua_ls", "pyright" })
 		end,
 	},
 }

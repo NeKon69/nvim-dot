@@ -109,6 +109,18 @@ return {
 	},
 
 	init = function()
+		local orig_schedule = vim.schedule
+		vim.schedule = function(fn)
+			orig_schedule(function()
+				local ok, err = pcall(fn)
+				if not ok and err:match("Invalid buffer id") then
+					return
+				elseif not ok then
+					error(err)
+				end
+			end)
+		end
+
 		vim.api.nvim_create_autocmd("User", {
 			pattern = "VeryLazy",
 			callback = function()

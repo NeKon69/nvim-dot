@@ -1,5 +1,4 @@
 return {
-	-- Форматирование кода
 	{
 		"stevearc/conform.nvim",
 		event = { "BufWritePre" },
@@ -49,7 +48,6 @@ return {
 			lint.linters_by_ft = {
 				cpp = { "clangtidy" },
 				c = { "clangtidy" },
-				python = { "pylint" },
 				cmake = { "cmakelint" },
 			}
 
