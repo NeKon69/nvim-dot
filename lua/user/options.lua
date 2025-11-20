@@ -1,4 +1,3 @@
--- ~/.config/nvim/lua/user/options.lua
 local opt = vim.opt
 vim.o.sessionoptions = "buffers,curdir,folds,help,tabpages,winsize,winpos,terminal,options,localoptions"
 opt.clipboard = "unnamedplus"
@@ -10,6 +9,7 @@ opt.relativenumber = true
 
 opt.incsearch = true
 opt.hlsearch = true
+opt.inccommand = "split"
 opt.ignorecase = true
 opt.smartcase = true
 

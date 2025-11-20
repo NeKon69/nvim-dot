@@ -54,7 +54,7 @@ map("n", "<leader>hu", "<cmd>Gitsigns undo_stage_hunk<CR>", { desc = "Git: Undo 
 map("n", "<leader>hp", "<cmd>Gitsigns preview_hunk<CR>", { desc = "Git: Preview Hunk" })
 map("n", "ee", "<cmd>close<CR>", { desc = "Close Window/Buffer" })
 vim.cmd("command! Q qa")
-map("n", "<leader>ll", "<cmd>qa<CR>", { desc = "Quit Neovim" })
+map("n", "<leader>ll", "<cmd>wq<CR>", { desc = "Quit Neovim" })
 map("n", "<leader>q", ":close<CR>", { desc = "Close Curren Window" })
 vim.keymap.set("n", "<leader>nf", function()
 	require("user.templates").create_from_template()

@@ -25,20 +25,15 @@ return {
 				json = { "jq" },
 				asm = { "asmfmt" },
 			},
-
-			format_on_save = {
-				timeout_ms = 500,
-				lsp_fallback = true,
-			},
-
-			formatters = {
-				["clang-format"] = {
-					prepend_args = { "--style=file" },
-				},
-			},
 		},
+		init = function()
+			vim.api.nvim_create_autocmd("VimLeavePre", {
+				callback = function()
+					vim.g.is_exiting = true
+				end,
+			})
+		end,
 	},
-
 	{
 		"mfussenegger/nvim-lint",
 		event = { "BufReadPre", "BufNewFile" },

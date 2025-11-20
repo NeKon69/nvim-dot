@@ -1,6 +1,7 @@
 return {
 	{
 		"andweeb/presence.nvim",
+		ebabled = true,
 		config = function()
 			require("presence").setup({
 				auto_update = true,
@@ -10,15 +11,7 @@ return {
 				debounce_timeout = 10,
 				enable_line_number = false,
 				blacklist = {},
-				buttons = function(buffer, repo_url)
-					if repo_url then
-						return {
-							{ label = "View Repository", url = repo_url },
-						}
-					else
-						return true
-					end
-				end,
+				buttons = true,
 				file_assets = {},
 				show_time = true,
 

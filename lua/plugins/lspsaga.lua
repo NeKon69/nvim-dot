@@ -13,7 +13,7 @@ return {
 			},
 			lightbulb = {
 				enable = true,
-				sign = true,
+				sign = false,
 				virtual_text = true,
 			},
 			code_action = {
@@ -37,13 +37,15 @@ return {
 			},
 		})
 
-		-- Кеймапы для lspsaga
-		vim.keymap.set("n", "gh", "<cmd>Lspsaga finder<CR>", { desc = "LSP: Find references/implementations" })
-		vim.keymap.set("n", "gp", "<cmd>Lspsaga peek_definition<CR>", { desc = "LSP: Peek definition" })
-		vim.keymap.set("n", "gt", "<cmd>Lspsaga peek_type_definition<CR>", { desc = "LSP: Peek type definition" })
-		vim.keymap.set("n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", { desc = "LSP: Code action" })
-		vim.keymap.set("n", "<leader>o", "<cmd>Lspsaga outline<CR>", { desc = "LSP: Outline" })
-		vim.keymap.set("n", "<leader>ci", "<cmd>Lspsaga incoming_calls<CR>", { desc = "LSP: Incoming calls" })
-		vim.keymap.set("n", "<leader>co", "<cmd>Lspsaga outgoing_calls<CR>", { desc = "LSP: Outgoing calls" })
+		local keymap = vim.keymap.set
+		keymap("n", "gh", "<cmd>Lspsaga finder<CR>", { desc = "LSP: Find references/implementations" })
+		keymap("n", "gp", "<cmd>Lspsaga peek_definition<CR>", { desc = "LSP: Peek definition" })
+		keymap("n", "gt", "<cmd>Lspsaga peek_type_definition<CR>", { desc = "LSP: Peek type definition" })
+		keymap("n", "<leader>ca", "<cmd>Lspsaga code_action<CR>", { desc = "LSP: Code action" })
+		keymap({ "n", "v" }, "<M-CR>", "<cmd>Lspsaga code_action<CR>", { desc = "LSP: Code action (Alt+Enter)" })
+
+		keymap("n", "<leader>o", "<cmd>Lspsaga outline<CR>", { desc = "LSP: Outline" })
+		keymap("n", "<leader>ci", "<cmd>Lspsaga incoming_calls<CR>", { desc = "LSP: Incoming calls" })
+		keymap("n", "<leader>co", "<cmd>Lspsaga outgoing_calls<CR>", { desc = "LSP: Outgoing calls" })
 	end,
 }

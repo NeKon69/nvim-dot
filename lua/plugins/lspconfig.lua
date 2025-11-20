@@ -1,7 +1,7 @@
 return {
 	{
 		"neovim/nvim-lspconfig",
-		event = { "BufReadPre", "BufNewFile" },
+		event = { "VeryLazy" },
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
 			{ "antosha417/nvim-lsp-file-operations", config = true },
@@ -10,7 +10,14 @@ return {
 			local user_lspconfig = require("user.lspconfig")
 
 			vim.lsp.config("clangd", {
-				cmd = { "clangd" },
+				cmd = {
+					"clangd",
+					"--background-index",
+					"--clang-tidy",
+					"--query-driver=/opt/cuda/bin/nvcc,/usr/bin/c++,/usr/bin/g++,/usr/bin/clang++",
+					"--header-insertion=iwyu",
+					"--completion-style=detailed",
+				},
 				filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
 				root_markers = {
 					".clangd",
@@ -20,12 +27,6 @@ return {
 					"compile_flags.txt",
 					".git",
 				},
-				capabilities = user_lspconfig.capabilities,
-			})
-
-			vim.lsp.config("glslls", {
-				cmd = { "glslls", "--stdin" },
-				filetypes = { "glsl", "vert", "frag", "geom", "tesc", "tese", "comp" },
 				capabilities = user_lspconfig.capabilities,
 			})
 
@@ -65,7 +66,6 @@ return {
 				},
 			})
 
-			-- НОВОЕ: Python LSP
 			vim.lsp.config("pyright", {
 				cmd = { "pyright-langserver", "--stdio" },
 				filetypes = { "python" },
@@ -90,7 +90,7 @@ return {
 				},
 			})
 
-			vim.lsp.enable({ "clangd", "glslls", "lua_ls", "pyright" })
+			vim.lsp.enable({ "clangd", "lua_ls", "pyright" })
 		end,
 	},
 }

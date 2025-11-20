@@ -215,7 +215,7 @@ return {
 
 			vim.defer_fn(function()
 				expand_next(1)
-			end, 50)
+			end, 5)
 		end
 
 		local function restore_state_background()
@@ -229,8 +229,8 @@ return {
 				vim.defer_fn(function()
 					api.tree.close()
 					restore_pending = false
-				end, 150)
-			end, 100)
+				end, 10)
+			end, 10)
 		end
 
 		local function on_attach(bufnr)

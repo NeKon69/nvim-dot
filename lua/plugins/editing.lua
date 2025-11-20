@@ -1,42 +1,40 @@
 return {
-	{
-		"numToStr/Comment.nvim",
-		opts = {},
-		lazy = false,
-	},
-
+	{ "numToStr/Comment.nvim", opts = {}, lazy = false },
 	{
 		"kylechui/nvim-surround",
 		version = "*",
 		event = "VeryLazy",
-		config = function()
-			require("nvim-surround").setup({})
-		end,
-	},
-
-	{
-		"Pocco81/auto-save.nvim",
-		config = function()
-			require("auto-save").setup({
-				enabled = true,
-				execution_message = {
-					message = function()
-						return "💾 Auto-saved at " .. vim.fn.strftime("%H:%M:%S")
-					end,
-					dim = 0.5,
-					cleaning_interval = 1250,
-				},
-				trigger_events = { "TextChanged", "InsertLeave" },
-				debounce_delay = 1500,
-			})
-		end,
+		config = function() require("nvim-surround").setup({}) end,
 	},
 	{
 		"echasnovski/mini.pairs",
 		version = "*",
 		event = "VeryLazy",
-		config = function()
-			require("mini.pairs").setup()
+		config = function() require("mini.pairs").setup() end,
+	},
+	{
+		"folke/snacks.nvim",
+		opts = {},
+		init = function()
+			local autosave_group = vim.api.nvim_create_augroup("AutosaveOnFocus", { clear = true })
+
+			vim.api.nvim_create_autocmd("FocusLost", {
+				group = autosave_group,
+				pattern = "*",
+				callback = function()
+					vim.cmd("silent! wa")
+					local ok, persistence = pcall(require, "persistence")
+					if ok then
+						pcall(persistence.save)
+					end
+				end,
+			})
+
+			vim.api.nvim_create_autocmd("VimLeavePre", {
+				callback = function()
+					vim.api.nvim_del_augroup_by_name("AutosaveOnFocus")
+				end,
+			})
 		end,
 	},
 }
