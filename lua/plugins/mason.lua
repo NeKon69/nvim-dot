@@ -34,7 +34,7 @@ return {
 
 					-- Отладчики
 					"codelldb", -- Используем codelldb вместо cpptools
-					"cpptools",
+                    "cpptools",
 
 					-- Утилиты
 					"asmfmt",

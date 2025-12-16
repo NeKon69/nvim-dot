@@ -5,6 +5,7 @@ return {
 		cmd = { "ConformInfo" },
 		keys = {
 			{
+				-- Хоткей для ручного форматирования: Leader + c + f
 				"<leader>cf",
 				function()
 					require("conform").format({ async = true, lsp_fallback = true })
@@ -14,6 +15,7 @@ return {
 			},
 		},
 		opts = {
+			-- Какие форматтеры для каких языков
 			formatters_by_ft = {
 				lua = { "stylua" },
 				cpp = { "clang-format" },
@@ -21,9 +23,15 @@ return {
 				cuda = { "clang-format" },
 				python = { "black" },
 				rust = { "rustfmt" },
-				cmake = { "cmake_format" },
 				json = { "jq" },
-				asm = { "asmfmt" },
+				-- asm = { "asmfmt" }, -- Раскомментируй, если asmfmt установлен
+			},
+
+			-- === ГЛАВНАЯ МАГИЯ (Format on Save) ===
+			format_on_save = {
+				timeout_ms = 1000, -- Если тупит дольше 1 сек — не ждать
+				lsp_fallback = true, -- Если нет форматтера, попробовать через LSP (clangd)
+				async = false, -- false = ждать окончания форматирования перед записью (чтобы файл не скакал)
 			},
 		},
 		init = function()
@@ -40,10 +48,10 @@ return {
 		config = function()
 			local lint = require("lint")
 
+			-- Я убрал отсюда cmakelint, чтобы не спамило ошибками,
+			-- раз ты решил отказаться от cmake.
 			lint.linters_by_ft = {
-				cpp = { "clangtidy" },
-				c = { "clangtidy" },
-				cmake = { "cmakelint" },
+				-- python = { "pylint" }, -- Пример, если нужен линтер для питона
 			}
 
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })

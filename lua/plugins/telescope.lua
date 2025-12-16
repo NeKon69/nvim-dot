@@ -11,6 +11,7 @@ return {
 		local conf = require("telescope.config").values
 		local entry_display = require("telescope.pickers.entry_display")
 		local sorters = require("telescope.sorters")
+		local utils = require("telescope.utils")
 
 		local log_file = vim.fn.stdpath("cache") .. "/smart_picker.log"
 
@@ -452,7 +453,16 @@ return {
 			local function make_display(entry)
 				local num_str = string.format("#%0" .. num_width .. "d", entry.original_index)
 				local time_str = format_time(entry.value.timestamp)
-				local path_str = entry.value.relative_path
+
+				local path = entry.value.relative_path
+				local tail = utils.path_tail(path)
+				local parent = path:sub(1, #path - #tail)
+
+				local path_display = {}
+				if parent ~= "" then
+					table.insert(path_display, { parent, "TelescopeResultsComment" })
+				end
+				table.insert(path_display, { tail, "TelescopeResultsIdentifier" })
 
 				local should_highlight_num = current_highlight_info.highlight_index
 					and (current_highlight_info.target_index == entry.original_index)
@@ -462,7 +472,7 @@ return {
 				return displayer({
 					{ num_str, should_highlight_num and "TelescopeMatching" or "TelescopeResultsNumber" },
 					{ time_str, should_highlight_time and "TelescopeMatching" or "TelescopeResultsComment" },
-					path_str,
+					path_display,
 				})
 			end
 
@@ -472,7 +482,12 @@ return {
 				end,
 				highlighter = function(_, prompt, display)
 					local highlights = {}
+					-- Так как мы изменили структуру display, хайлайтер поиска может работать чуть иначе,
+					-- но для твоего кастомного поиска по паттернам это должно быть ок.
+					-- Просто убедимся, что ищем по полному пути
 
+					-- Примечание: стандартный display в entry_display - это склеенная строка.
+					-- Твоя логика подсветки совпадений:
 					for _, pattern in ipairs(current_highlight_info.text_patterns) do
 						local start_pos, end_pos = display:lower():find(pattern:lower(), 1, true)
 						if start_pos then
@@ -495,7 +510,7 @@ return {
 						return {
 							value = entry,
 							display = make_display,
-							ordinal = "",
+							ordinal = entry.relative_path, -- Важно для сортировки/поиска
 							path = entry.path,
 							original_index = entry.original_index,
 						}
@@ -521,7 +536,7 @@ return {
 										return {
 											value = entry,
 											display = make_display,
-											ordinal = "",
+											ordinal = entry.relative_path,
 											path = entry.path,
 											original_index = entry.original_index,
 										}
@@ -602,23 +617,27 @@ return {
 
 		require("telescope").setup({
 			defaults = {
-				layout_strategy = "vertical",
+				-- UI как у LazyVim (большое окно, список слева)
+				layout_strategy = "horizontal",
 				sorting_strategy = "ascending",
 				selection_strategy = "follow",
 				layout_config = {
-					vertical = {
+					horizontal = {
 						prompt_position = "top",
-						preview_position = "bottom",
-						width = 0.54,
-						height = 0.38,
-						mirror = true,
-						preview_cutoff = 0,
+						preview_width = 0.55,
+						results_width = 0.8,
 					},
+					vertical = {
+						mirror = false,
+					},
+					width = 0.87,
+					height = 0.80,
+					preview_cutoff = 120,
 				},
 				border = true,
 				borderchars = { "─", "│", "─", "│", "╭", "╮", "╯", "╰" },
 				color_devicons = true,
-				path_display = { "truncate" },
+				path_display = { "truncate" }, -- Мы переопределяем это вручную в make_display
 				prompt_title = "Search",
 				results_title = "Files",
 				preview_title = "Preview",
@@ -631,5 +650,7 @@ return {
 		vim.api.nvim_set_hl(0, "TelescopePreviewBorder", { fg = "#fa6fff", bg = "NONE" })
 		vim.api.nvim_set_hl(0, "TelescopeSelection", { fg = "#ff5555", bg = "NONE" })
 		vim.api.nvim_set_hl(0, "TelescopeMatching", { fg = "#ffea00", bg = "NONE" })
+		vim.api.nvim_set_hl(0, "TelescopeResultsComment", { fg = "#6c7086", bg = "NONE" })
+		vim.api.nvim_set_hl(0, "TelescopeResultsIdentifier", { fg = "#ffffff", bg = "NONE", bold = true })
 	end,
 }

@@ -4,6 +4,15 @@ return {
 	dependencies = {
 		"nvim-tree/nvim-web-devicons",
 	},
+	keys = {
+		{
+			"<leader>e",
+			function()
+				require("nvim-tree.api").tree.toggle({ find_file = true, float = true })
+			end,
+			desc = "󰓃 Project Explorer",
+		},
+	},
 	config = function()
 		vim.g.loaded_netrw = 1
 		vim.g.loaded_netrwPlugin = 1
