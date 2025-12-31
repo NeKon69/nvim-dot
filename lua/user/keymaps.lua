@@ -2,28 +2,28 @@ local map = vim.keymap.set
 
 -- [[ Find ]] -----------------------------------------------------------------
 
-map("n", "<leader>f", "", { noremap = true, silent = true, desc = "󰗨 Find" })
+map("n", "<leader>f", "", { noremap = true, silent = true, desc = "🔍 Find / Search" })
 map("n", "<leader>ff", function()
 	require("telescope.builtin").find_files()
-end, { desc = "Find Files" })
+end, { desc = "🔭 Find Files" })
 map("n", "<leader>fs", function()
-	local ok, picker = pcall(require, "plugins.telescope")
-	if ok and picker.smart_file_picker then
-		picker.smart_file_picker()
-	end
-end, { desc = "Find Smart (History)" })
+	require("telescope.builtin").oldfiles({
+		only_cwd = true,
+		prompt_title = "Recent Files (Project)",
+	})
+end, { desc = "↺ Recent (Project)" })
 map("n", "<leader>fg", function()
 	require("telescope.builtin").live_grep()
-end, { desc = "Grep (Find Text)" })
+end, { desc = "⚡ Live Grep" })
 map("n", "<leader>fb", function()
 	require("telescope.builtin").buffers()
-end, { desc = "Find Buffers" })
+end, { desc = " Buffers" })
 map("n", "<leader>fo", function()
 	require("telescope.builtin").oldfiles()
-end, { desc = "Find Old Files" })
+end, { desc = "🌍 Recent (Global)" })
 map({ "n", "t" }, "<leader>ft", function()
 	require("snacks").terminal()
-end, { desc = "Float Terminal" })
+end, { desc = " Float Terminal" })
 
 -- [[ Project & Files ]] ------------------------------------------------------
 map("n", "<leader>p", "", { noremap = true, silent = true, desc = "󰓃 Project" })
@@ -35,7 +35,6 @@ map("n", "<leader>pn", function()
 end, { desc = "New from Template" })
 
 -- [[ Harpoon ]] --------------------------------------------------------------
--- This is a placeholder for Harpoon, which we will configure next.
 map("n", "<leader>h", "", { noremap = true, silent = true, desc = "󱡀 Harpoon" })
 map("n", "<leader>ha", function()
 	require("harpoon"):list():add()
@@ -117,7 +116,6 @@ map("n", "]d", vim.diagnostic.goto_next, { desc = "Next Diagnostic" })
 
 -- [[ Debug ]] ----------------------------------------------------------------
 map("n", "<leader>d", "", { noremap = true, silent = true, desc = "󰃤 Debug" })
--- This group is a placeholder for the Debug Hydra we will create later.
 
 map("n", "<leader>u", "", { noremap = true, silent = true, desc = "󰙵 UI Toggles" })
 
@@ -128,3 +126,11 @@ map("n", "<C-h>", "<C-w>h", { desc = "Navigate Left" })
 map("n", "<C-j>", "<C-w>j", { desc = "Navigate Down" })
 map("n", "<C-k>", "<C-w>k", { desc = "Navigate Up" })
 map("n", "<C-l>", "<C-w>l", { desc = "Navigate Right" })
+
+-- [[ Build System (Overseer) ]] -----------------------------------------------
+map("n", "<leader>b", "", { noremap = true, silent = true, desc = "󱓧 Build" })
+
+map("n", "<leader>bb", "<cmd>Telescope overseer<CR>", { desc = "Build: Run Task" })
+map("n", "<leader>br", "<cmd>OverseerRunLast<CR>", { desc = "Build: Run Last" })
+map("n", "<leader>bs", "<cmd>OverseerTaskAction stop<CR>", { desc = "Build: Stop" })
+map("n", "<leader>bo", "<cmd>OverseerToggle<CR>", { desc = "Build: Toggle Panel" })
