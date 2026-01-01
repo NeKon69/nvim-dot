@@ -40,6 +40,40 @@ return {
 			},
 		},
 
+		dashboard = {
+			enabled = true,
+			sections = {
+				{
+					pane = 1,
+					section = "terminal",
+					cmd = "echo ''",
+					height = 18,
+					padding = 1,
+				},
+				{ pane = 2, section = "header" },
+				{ pane = 2, section = "keys", gap = 1, padding = 1 },
+				{
+					pane = 2,
+					section = "recent_files",
+					title = "Recent Files",
+					icon = " ",
+					indent = 2,
+					padding = 1,
+					limit = 10,
+				},
+				{ pane = 2, section = "startup" },
+			},
+			preset = {
+				keys = {
+					{ icon = " ", key = "u", desc = "Update", action = ":Lazy update" },
+					{ icon = " ", key = "f", desc = "Find File", action = ":Telescope find_files" },
+					{ icon = " ", key = "o", desc = "Old Files", action = ":Telescope oldfiles" },
+					{ icon = " ", key = "g", desc = "Find Word", action = ":Telescope live_grep" },
+					{ icon = " ", key = "q", desc = "Quit", action = ":qa" },
+				},
+			},
+		},
+
 		input = { enabled = true },
 		rename = { enabled = true },
 		scope = { enabled = true },
@@ -157,6 +191,22 @@ return {
 				Snacks.toggle.inlay_hints():map("<leader>uh")
 				Snacks.toggle.indent():map("<leader>ug")
 				Snacks.toggle.dim():map("<leader>uD")
+			end,
+		})
+
+		vim.api.nvim_create_autocmd("BufEnter", {
+			pattern = "*",
+			callback = function(ev)
+				local is_dashboard = vim.bo[ev.buf].filetype == "snacks_dashboard"
+				if is_dashboard then
+					Snacks.image.new({
+						buf = ev.buf,
+						file = "/home/progamers/Pictures/homework/fa7bcd7e906c638abd8fd46a8813e565.webp",
+						width = 50,
+						height = 15,
+						pos = { 2, 2 },
+					})
+				end
 			end,
 		})
 	end,

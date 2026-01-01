@@ -1,10 +1,10 @@
 return {
 	"Exafunction/windsurf.nvim",
+	event = "InsertEnter",
 	dependencies = {
 		"nvim-lua/plenary.nvim",
 		"hrsh7th/nvim-cmp",
 	},
-	lazy = false,
 	config = function()
 		require("codeium").setup({
 			enable_cmp_source = true,
@@ -13,5 +13,14 @@ return {
 				enabled = true,
 			},
 		})
+
+		vim.api.nvim_set_hl(0, "CodeiumSuggestion", { link = "Comment" })
+
+		require("codeium.virtual_text").set_statusbar_refresh(function()
+			local status, lualine = pcall(require, "lualine")
+			if status then
+				lualine.refresh()
+			end
+		end)
 	end,
 }

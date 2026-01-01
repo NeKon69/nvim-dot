@@ -1,132 +1,283 @@
 return {
-	"mfussenegger/nvim-dap",
-	dependencies = {
-		{ "rcarriga/nvim-dap-ui", dependencies = { "nvim-neotest/nvim-nio" } },
-		"theHamsta/nvim-dap-virtual-text",
-		"jay-babu/mason-nvim-dap.nvim",
+	{
+		"mfussenegger/nvim-dap",
+		dependencies = {
+			"theHamsta/nvim-dap-virtual-text",
+			"jay-babu/mason-nvim-dap.nvim",
+		},
+		config = function()
+			local dap = require("dap")
+			local dapview = require("dap-view")
+
+			require("nvim-dap-virtual-text").setup({
+				enabled = true,
+				enabled_commands = true,
+				highlight_changed_variables = true,
+				highlight_new_as_changed = true,
+			})
+
+			require("mason-nvim-dap").setup({
+				ensure_installed = { "codelldb" },
+				handlers = {},
+			})
+
+			local function get_anti_asm_commands()
+				return {
+					"settings set target.process.thread.step-in-avoid-nodebug true",
+					"settings set target.process.thread.step-out-avoid-nodebug true",
+				}
+			end
+
+			local function pick_process_by_name()
+				return coroutine.create(function(dap_run_co)
+					local name = vim.fn.input("Process name: ")
+					if not name or name == "" then
+						coroutine.resume(dap_run_co, dap.ABORT)
+						return
+					end
+					local pids_str = vim.fn.system("pgrep -f " .. vim.fn.shellescape(name))
+					local pids = {}
+					for pid in pids_str:gmatch("%d+") do
+						table.insert(pids, pid)
+					end
+					if #pids == 0 then
+						vim.notify("No process found with name: " .. name, vim.log.levels.WARN)
+						coroutine.resume(dap_run_co, dap.ABORT)
+					elseif #pids == 1 then
+						coroutine.resume(dap_run_co, tonumber(pids[1]))
+					else
+						vim.ui.select(pids, { prompt = "Select PID for '" .. name .. "':" }, function(choice)
+							coroutine.resume(dap_run_co, choice and tonumber(choice) or dap.ABORT)
+						end)
+					end
+				end)
+			end
+
+			dap.configurations.cpp = {
+				{
+					name = "Launch file",
+					type = "codelldb",
+					request = "launch",
+					program = function()
+						return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+					end,
+					cwd = "${workspaceFolder}",
+					preRunCommands = get_anti_asm_commands,
+				},
+				{
+					name = "Attach by PID",
+					type = "codelldb",
+					request = "attach",
+					pid = require("dap.utils").pick_process,
+					preRunCommands = get_anti_asm_commands,
+				},
+				{
+					name = "Attach by name",
+					type = "codelldb",
+					request = "attach",
+					pid = pick_process_by_name,
+					preRunCommands = get_anti_asm_commands,
+				},
+			}
+			dap.configurations.c = dap.configurations.cpp
+			dap.configurations.rust = dap.configurations.cpp
+
+			vim.fn.sign_define("DapBreakpoint", { text = "🔴", texthl = "DiagnosticError" })
+			vim.fn.sign_define("DapBreakpointCondition", { text = "🟡", texthl = "DiagnosticWarn" })
+			vim.fn.sign_define("DapLogPoint", { text = "📝", texthl = "DiagnosticInfo" })
+			vim.fn.sign_define("DapStopped", { text = "➡️", texthl = "DiagnosticHint", linehl = "DebugLine" })
+
+			local function focus_code_window()
+				for _, win in ipairs(vim.api.nvim_list_wins()) do
+					local buf = vim.api.nvim_win_get_buf(win)
+					if
+						vim.api.nvim_get_option_value("buftype", { buf = buf }) == ""
+						and vim.bo[buf].filetype ~= "dap-repl"
+					then
+						vim.api.nvim_set_current_win(win)
+						return
+					end
+				end
+			end
+
+			local DebugMode = { is_active = false, win_id = nil }
+			local help_lines = {
+				"  DEBUG MODE",
+				"",
+				" Step:         Stack:         Session:",
+				" l: over       J: down        r: restart",
+				" j: into       K: up          q: exit mode (bg)",
+				" k: out                       b: breakpoint",
+				" M: to code                   <dd>: KILL ALL",
+				"",
+				" Misc:         UI (dap-view):",
+				" c: continue   S: scopes      D: disassembly",
+				" C: cursor     W: watches     R: REPL",
+				"               B: breaks      T: threads",
+				"               u: toggle UI",
+			}
+			local debug_map = {
+				["l"] = { dap.step_over, "Step Over" },
+				["j"] = { dap.step_into, "Step Into" },
+				["k"] = { dap.step_out, "Step Out" },
+				["J"] = { dap.down, "Stack Down" },
+				["K"] = { dap.up, "Stack Up" },
+				["c"] = { dap.continue, "Continue" },
+				["C"] = { dap.run_to_cursor, "Run to Cursor" },
+				["r"] = { dap.restart, "Restart" },
+				["b"] = { dap.toggle_breakpoint, "Toggle Breakpoint" },
+				["u"] = { dapview.toggle, "Toggle UI" },
+				["M"] = { focus_code_window, "Focus Code" },
+				["S"] = {
+					function()
+						dapview.jump_to_view("scopes")
+					end,
+					"Scopes",
+				},
+				["W"] = {
+					function()
+						dapview.jump_to_view("watches")
+					end,
+					"Watches",
+				},
+				["B"] = {
+					function()
+						dapview.jump_to_view("breakpoints")
+					end,
+					"Breakpoints",
+				},
+				["T"] = {
+					function()
+						dapview.jump_to_view("threads")
+					end,
+					"Threads",
+				},
+				["R"] = {
+					function()
+						dapview.jump_to_view("repl")
+					end,
+					"REPL",
+				},
+				["D"] = {
+					function()
+						dapview.jump_to_view("disassembly")
+					end,
+					"Disassembly",
+				},
+				["q"] = {
+					function()
+						DebugMode.toggle(false)
+					end,
+					"Exit Mode (Keep Session)",
+				},
+				["<Esc>"] = {
+					function()
+						DebugMode.toggle(false)
+					end,
+					"Exit Mode",
+				},
+				["<leader>dd"] = {
+					function()
+						dap.terminate()
+					end,
+					"KILL SESSION",
+				},
+			}
+			local function open_help_win()
+				local buf = vim.api.nvim_create_buf(false, true)
+				vim.api.nvim_buf_set_lines(buf, 0, -1, false, help_lines)
+				local opts = {
+					relative = "editor",
+					width = 46,
+					height = #help_lines,
+					col = vim.o.columns - 46 - 2,
+					row = vim.o.lines - #help_lines - 2,
+					style = "minimal",
+					border = "rounded",
+					focusable = false,
+				}
+				DebugMode.win_id = vim.api.nvim_open_win(buf, false, opts)
+			end
+
+			function DebugMode.toggle(enable)
+				if enable == nil then
+					enable = not DebugMode.is_active
+				end
+				if enable then
+					if DebugMode.is_active then
+						return
+					end
+					DebugMode.is_active = true
+					for key, val in pairs(debug_map) do
+						vim.keymap.set("n", key, val[1], { desc = val[2] })
+					end
+					if DebugMode.win_id and vim.api.nvim_win_is_valid(DebugMode.win_id) then
+						vim.api.nvim_win_close(DebugMode.win_id, true)
+					end
+					open_help_win()
+					vim.notify("Debug Mode Enabled", vim.log.levels.INFO, { title = "DAP" })
+				else
+					if not DebugMode.is_active then
+						return
+					end
+					DebugMode.is_active = false
+					for key, _ in pairs(debug_map) do
+						pcall(vim.keymap.del, "n", key)
+					end
+					if DebugMode.win_id and vim.api.nvim_win_is_valid(DebugMode.win_id) then
+						vim.api.nvim_win_close(DebugMode.win_id, true)
+						DebugMode.win_id = nil
+					end
+					vim.notify("Debug Mode Disabled", vim.log.levels.INFO, { title = "DAP" })
+				end
+
+				if package.loaded["lualine"] then
+					require("lualine").refresh()
+				end
+			end
+
+			local function disable_debug_mode_on_exit()
+				if DebugMode.is_active then
+					DebugMode.toggle(false)
+				end
+			end
+
+			dap.listeners.after.event_initialized["dap_mode_on"] = function()
+				DebugMode.toggle(true)
+			end
+			dap.listeners.after.event_terminated["dap_mode_off"] = disable_debug_mode_on_exit
+			dap.listeners.after.event_exited["dap_mode_off"] = disable_debug_mode_on_exit
+
+			vim.keymap.set("n", "<leader>dd", dap.continue, { desc = "DAP: Continue/Start" })
+			vim.keymap.set("n", "<leader>dk", dap.terminate, { desc = "DAP: Terminate" })
+			vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
+			vim.keymap.set("n", "<leader>do", dapview.toggle, { desc = "DAP: Toggle UI" })
+			vim.keymap.set("n", "<leader>dB", function()
+				dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
+			end, { desc = "DAP: Conditional Breakpoint" })
+		end,
 	},
-
-	config = function()
-		local dap = require("dap")
-		local dapui = require("dapui")
-
-		dapui.setup({
-			icons = { expanded = "▾", collapsed = "▸", current_frame = "▸" },
-			floating = {
-				max_height = 0.9,
-				max_width = 0.9,
-				border = "rounded",
-				mappings = { close = { "q", "<Esc>" } },
-			},
-			layouts = {
-				{
-					elements = {
-						{ id = "scopes", size = 0.4 },
-						{ id = "breakpoints", size = 0.2 },
-						{ id = "stacks", size = 0.2 },
-						{ id = "watches", size = 0.2 },
-					},
-					position = "left",
-					size = 40,
+	{
+		"igorlfs/nvim-dap-view",
+		config = function()
+			require("dap-view").setup({
+				auto_toggle = true,
+				windows = { terminal = { start_hidden = false } },
+				winbar = {
+					show = true,
+					sections = { "watches", "scopes", "exceptions", "breakpoints", "threads", "repl", "disassembly" },
 				},
-				{
-					elements = { { id = "repl", size = 0.5 }, { id = "console", size = 0.5 } },
-					position = "bottom",
-					size = 10,
-				},
-			},
-			render = {
-				max_value_lines = 100,
-			},
-		})
-
-		require("nvim-dap-virtual-text").setup({
-			enabled = true,
-			enabled_commands = true,
-			highlight_changed_variables = true,
-			highlight_new_as_changed = true,
-		})
-
-		-- Конфигурация codelldb (лучше чем cpptools)
-		dap.adapters.codelldb = {
-			type = "server",
-			port = "${port}",
-			executable = {
-				command = vim.fn.stdpath("data") .. "/mason/bin/codelldb",
-				args = { "--port", "${port}" },
-			},
-		}
-
-		-- Конфигурация для C/C++/Rust
-		dap.configurations.cpp = {
-			{
-				name = "Launch file",
-				type = "codelldb",
-				request = "launch",
-				program = function()
-					return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
-				end,
-				cwd = "${workspaceFolder}",
-				stopOnEntry = false,
-				args = {},
-			},
-			{
-				name = "Attach to process",
-				type = "codelldb",
-				request = "attach",
-				pid = require("dap.utils").pick_process,
-				args = {},
-			},
-		}
-
-		dap.configurations.c = dap.configurations.cpp
-		dap.configurations.rust = dap.configurations.cpp
-
-		require("mason-nvim-dap").setup({
-			ensure_installed = { "codelldb" },
-			handlers = {},
-		})
-
-		-- Автоматическое открытие/закрытие UI
-		dap.listeners.after.event_initialized["dapui_config"] = function()
-			dapui.open()
-		end
-		dap.listeners.before.event_terminated["dapui_config"] = function()
-			dapui.close()
-		end
-		dap.listeners.before.event_exited["dapui_config"] = function()
-			dapui.close()
-		end
-
-		-- Знаки для брейкпоинтов
-		vim.fn.sign_define("DapBreakpoint", { text = "🔴", texthl = "DiagnosticError" })
-		vim.fn.sign_define("DapBreakpointCondition", { text = "🟡", texthl = "DiagnosticWarn" })
-		vim.fn.sign_define("DapLogPoint", { text = "📝", texthl = "DiagnosticInfo" })
-		vim.fn.sign_define("DapStopped", { text = "➡️", texthl = "DiagnosticHint", linehl = "DebugLine" })
-
-		-- Основные кеймапы
-		local map = vim.keymap.set
-		map("n", "<F5>", dap.continue, { desc = "DAP: Continue" })
-		map("n", "<S-F5>", dap.terminate, { desc = "DAP: Terminate" })
-		map("n", "<F9>", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
-		map("n", "<F10>", dap.step_over, { desc = "DAP: Step Over" })
-		map("n", "<F11>", dap.step_into, { desc = "DAP: Step Into" })
-		map("n", "<S-F11>", dap.step_out, { desc = "DAP: Step Out" })
-
-		-- Расширенные брейкпоинты
-		map("n", "<leader>db", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
-		map("n", "<leader>dB", function()
-			dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-		end, { desc = "DAP: Conditional Breakpoint" })
-		map("n", "<leader>lp", function()
-			dap.set_breakpoint(nil, nil, vim.fn.input("Log point message: "))
-		end, { desc = "DAP: Log Point" })
-
-		map("n", "<leader>do", dapui.toggle, { desc = "DAP: Toggle UI" })
-		map("n", "<leader>de", dapui.eval, { desc = "DAP: Evaluate" })
-		map("v", "<leader>de", dapui.eval, { desc = "DAP: Evaluate selection" })
-		map("n", "<leader>dr", function()
-			dapui.float_element("repl", { enter = true })
-		end, { desc = "DAP: REPL" })
-	end,
+			})
+		end,
+	},
+	{
+		"Jorenar/nvim-dap-disasm",
+		url = "https://codeberg.org/Jorenar/nvim-dap-disasm.git",
+		dependencies = { "mfussenegger/nvim-dap", "igorlfs/nvim-dap-view" },
+		config = function()
+			require("dap-disasm").setup({
+				dapview_register = true,
+			})
+		end,
+	},
 }

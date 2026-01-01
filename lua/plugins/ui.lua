@@ -141,7 +141,39 @@ return {
 	{
 		"nvim-lualine/lualine.nvim",
 		config = function()
-			require("lualine").setup({ options = { theme = "tokyonight" } })
+			-- Компонент для lualine
+			local function lualine_dap_component()
+				-- Проверяем глобальную переменную, которую мы установили в dap.lua
+				if _G.dap_layer_active then
+					return " DEBUG"
+				end
+				return ""
+			end
+
+			require("lualine").setup({
+				options = {
+					theme = "tokyonight",
+					component_separators = { left = "", right = "" },
+					section_separators = { left = "", right = "" },
+				},
+				sections = {
+					lualine_a = { "mode" },
+					lualine_b = { "branch", "diff", "diagnostics" },
+					lualine_c = { "filename" },
+					lualine_x = {
+						-- Вот сюда мы добавляем наш компонент!
+						{
+							lualine_dap_component,
+							color = { bg = "#f7768e", fg = "#1a1b26" }, -- Красный из tokyonight
+						},
+						"encoding",
+						"fileformat",
+						"filetype",
+					},
+					lualine_y = { "progress" },
+					lualine_z = { "location" },
+				},
+			})
 		end,
 	},
 	{
@@ -159,15 +191,11 @@ return {
 				title_pos = "center",
 				zindex = 1000,
 
-				col = -1, -- Прижат к правому краю
-				row = -1, -- Прижат к низу
+				col = -1,
+				row = -1,
 
-				-- Делаем УЖЕ (было 0.3, ставим ~0.18, это примерно 1/6 экрана)
 				width = 0.18,
 
-				-- Делаем ВЫШЕ.
-				-- min = 10 заставит его быть высоким даже если кнопок мало.
-				-- max = 50 разрешит ему расти вверх до половины экрана.
 				height = { min = 10, max = 50 },
 			},
 
@@ -177,17 +205,13 @@ return {
 				align = "left",
 			},
 			ignore = {
-				"<leader>[0-9]", -- Игнорируем <leader> + любую цифру
+				"<leader>[0-9]",
 			},
 
-			-- Сортировка: сначала группы, потом команды (как в проводнике: папки, потом файлы)
 			sort = { "group", "local", "order", "mod" },
 
 			spec = {
 				mode = { "n", "v" },
-				-- Я закомментировал группы, чтобы не засорять твои маппинги.
-				-- Раскомментируй то, что реально используешь:
-
 				-- { "<leader>f", group = "Find  " },
 				-- { "<leader>g", group = "Git  " },
 				-- { "<leader>c", group = "Code  " },

@@ -13,6 +13,19 @@ return {
 	config = function()
 		local cmp = require("cmp")
 		local lspkind = require("lspkind")
+		local luasnip = require("luasnip")
+
+		vim.api.nvim_set_hl(0, "CmpBorder", { fg = "#FF00FF" })
+		local window_opts = {
+			completion = {
+				border = "rounded",
+				winhighlight = "FloatBorder:CmpBorder",
+			},
+			documentation = {
+				border = "rounded",
+				winhighlight = "FloatBorder:CmpBorder",
+			},
+		}
 
 		cmp.setup({
 			completion = {
@@ -20,7 +33,7 @@ return {
 			},
 			snippet = {
 				expand = function(args)
-					require("luasnip").lsp_expand(args.body)
+					luasnip.lsp_expand(args.body)
 				end,
 			},
 			sources = cmp.config.sources({
@@ -30,52 +43,55 @@ return {
 				{ name = "buffer" },
 				{ name = "path" },
 			}),
-			mapping = cmp.mapping.preset.insert({
-				["<CR>"] = cmp.mapping.confirm({ select = false }),
-				["<C-Space>"] = cmp.mapping.complete(),
-				["<C-n>"] = cmp.mapping.select_next_item(),
-				["<C-p>"] = cmp.mapping.select_prev_item(),
-				["<Tab>"] = cmp.mapping.select_next_item(),
-				["<S-Tab>"] = cmp.mapping.select_prev_item(),
-				["<Down>"] = cmp.mapping.select_next_item(),
-				["<Up>"] = cmp.mapping.select_prev_item(),
-			}),
 			formatting = {
 				format = lspkind.cmp_format({
-					mode = "symbol_text",
+					mode = "symbol",
 					maxwidth = 50,
 					ellipsis_char = "...",
 				}),
 			},
+			mapping = {
+				["<CR>"] = cmp.mapping.confirm({ select = false }),
+				["<C-Space>"] = cmp.mapping.complete(),
+				["<C-n>"] = cmp.mapping.select_next_item(),
+				["<C-p>"] = cmp.mapping.select_prev_item(),
+				["<M-j>"] = cmp.mapping(function(fallback)
+					if cmp.visible() then
+						cmp.select_next_item()
+					elseif luasnip.expand_or_jumpable() then
+						luasnip.expand_or_jump()
+					else
+						fallback()
+					end
+				end, { "i", "s" }),
+				["<M-k>"] = cmp.mapping(function(fallback)
+					if cmp.visible() then
+						cmp.select_prev_item()
+					elseif luasnip.jumpable(-1) then
+						luasnip.jump(-1)
+					else
+						fallback()
+					end
+				end, { "i", "s" }),
+			},
+			window = window_opts,
 		})
 
 		cmp.setup.cmdline("/", {
-			mapping = cmp.mapping.preset.cmdline({
-				["<Down>"] = { c = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }) },
-				["<Up>"] = { c = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }) },
-
-				["<S-CR>"] = { c = cmp.mapping.confirm({ select = true }) },
-
-				["<CR>"] = { c = cmp.mapping.confirm({ select = false }) },
-			}),
-			sources = {
-				{ name = "buffer" },
-			},
+			mapping = cmp.mapping.preset.cmdline(),
+			sources = { { name = "buffer" } },
+			window = window_opts,
 		})
 
 		cmp.setup.cmdline(":", {
-			mapping = cmp.mapping.preset.cmdline({
-				["<Down>"] = { c = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }) },
-				["<Up>"] = { c = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }) },
-				["<S-CR>"] = { c = cmp.mapping.confirm({ select = true }) },
-				["<CR>"] = { c = cmp.mapping.confirm({ select = false }) },
-			}),
+			mapping = cmp.mapping.preset.cmdline(),
 			sources = cmp.config.sources({
 				{ name = "path" },
 			}, {
 				{ name = "cmdline" },
 			}),
 			matching = { disallow_symbol_nonprefix_matching = false },
+			window = window_opts,
 		})
 	end,
 }
