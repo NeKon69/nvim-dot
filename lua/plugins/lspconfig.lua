@@ -4,11 +4,8 @@ return {
 		event = { "VeryLazy" },
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
-			{ "antosha417/nvim-lsp-file-operations", config = true },
 		},
 		config = function()
-			local user_lspconfig = require("user.lspconfig")
-
 			vim.lsp.config("clangd", {
 				cmd = {
 					"clangd",
@@ -27,7 +24,6 @@ return {
 					"compile_flags.txt",
 					".git",
 				},
-				capabilities = user_lspconfig.capabilities,
 			})
 
 			vim.lsp.config("lua_ls", {
@@ -43,25 +39,15 @@ return {
 					"selene.yml",
 					".git",
 				},
-				capabilities = user_lspconfig.capabilities,
 				settings = {
 					Lua = {
-						runtime = {
-							version = "LuaJIT",
-						},
-						diagnostics = {
-							globals = { "vim" },
-						},
+						runtime = { version = "LuaJIT" },
+						diagnostics = { globals = { "vim" } },
 						workspace = {
-							library = {
-								vim.env.VIMRUNTIME,
-								"${3rd}/luv/library",
-							},
+							library = { vim.env.VIMRUNTIME, "${3rd}/luv/library" },
 							checkThirdParty = false,
 						},
-						telemetry = {
-							enable = false,
-						},
+						telemetry = { enable = false },
 					},
 				},
 			})
@@ -77,7 +63,6 @@ return {
 					"Pipfile",
 					".git",
 				},
-				capabilities = user_lspconfig.capabilities,
 				settings = {
 					python = {
 						analysis = {
@@ -90,7 +75,13 @@ return {
 				},
 			})
 
-			vim.lsp.enable({ "clangd", "lua_ls", "pyright" })
+			vim.lsp.enable({
+				"clangd",
+				"lua_ls",
+				"pyright",
+				"cmake",
+				"glsl_analyzer",
+			})
 		end,
 	},
 }

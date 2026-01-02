@@ -1,28 +1,36 @@
 return {
 	{
 		"andweeb/presence.nvim",
-		ebabled = true,
-		config = function()
-			require("presence").setup({
-				auto_update = true,
-				neovim_image_text = "Switched from boring CLion",
-				main_image = "neovim",
-				log_level = nil,
-				debounce_timeout = 10,
-				enable_line_number = false,
-				blacklist = {},
-				buttons = true,
-				file_assets = {},
-				show_time = true,
+		event = "VeryLazy",
+		opts = {
+			auto_update = true,
+			neovim_image_text = "Switched from boring CLion",
+			main_image = "neovim",
+			log_level = nil,
+			debounce_timeout = 10,
+			enable_line_number = false,
+			blacklist = {},
+			buttons = {
+				{ label = "My GitHub", url = "https://github.com/NeKon69" },
+			},
+			file_assets = {},
+			show_time = true,
 
-				editing_text = "Editing %s",
-				file_explorer_text = "Browsing %s",
-				git_commit_text = "Committing changes",
-				plugin_manager_text = "Managing plugins",
-				reading_text = "Reading %s",
-				workspace_text = "Working on %s",
-				line_number_text = "Line %s out of %s",
-			})
-		end,
+			editing_text = function(filename)
+				local modified = vim.bo.modified and " [+]" or ""
+				return string.format("Editing %s%s", filename, modified)
+			end,
+			file_explorer_text = "Browsing %s",
+			git_commit_text = "Committing changes",
+			plugin_manager_text = "Managing plugins",
+			reading_text = "Reading %s",
+			workspace_text = function(project_name, filename)
+				if project_name then
+					return string.format("Working on %s", project_name)
+				end
+				return "Working on something secret"
+			end,
+			line_number_text = "Line %s out of %s",
+		},
 	},
 }

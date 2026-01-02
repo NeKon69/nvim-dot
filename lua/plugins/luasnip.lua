@@ -8,17 +8,15 @@ return {
 		config = function()
 			local luasnip = require("luasnip")
 
-			-- Загрузка сниппетов из friendly-snippets
 			require("luasnip.loaders.from_vscode").lazy_load()
+			require("luasnip.loaders.from_vscode").lazy_load({ paths = { "~/.config/nvim/snippets" } })
 
-			-- Настройки LuaSnip
 			luasnip.config.set_config({
 				history = true,
 				updateevents = "TextChanged,TextChangedI",
 				enable_autosnippets = true,
 			})
 
-			-- Горячие клавиши для навигации по сниппетам
 			vim.keymap.set({ "i", "s" }, "<C-l>", function()
 				if luasnip.expand_or_jumpable() then
 					luasnip.expand_or_jump()

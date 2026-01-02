@@ -2,12 +2,12 @@ return {
 	{
 		"mfussenegger/nvim-dap",
 		dependencies = {
-			"theHamsta/nvim-dap-virtual-text",
+			"thehamsta/nvim-dap-virtual-text",
 			"jay-babu/mason-nvim-dap.nvim",
+			"igorlfs/nvim-dap-view",
 		},
 		config = function()
 			local dap = require("dap")
-			local dapview = require("dap-view")
 
 			require("nvim-dap-virtual-text").setup({
 				enabled = true,
@@ -100,6 +100,26 @@ return {
 				end
 			end
 
+			local function get_step_granularity()
+				if vim.bo.filetype == "dap-disassembly" then
+					return "instruction"
+				else
+					return "statement"
+				end
+			end
+
+			local function smart_step_over()
+				dap.step_over({ granularity = get_step_granularity() })
+			end
+
+			local function smart_step_into()
+				dap.step_into({ granularity = get_step_granularity() })
+			end
+
+			local function smart_step_out()
+				dap.step_out({ granularity = get_step_granularity() })
+			end
+
 			local DebugMode = { is_active = false, win_id = nil }
 			local help_lines = {
 				"  DEBUG MODE",
@@ -108,7 +128,7 @@ return {
 				" l: over       J: down        r: restart",
 				" j: into       K: up          q: exit mode (bg)",
 				" k: out                       b: breakpoint",
-				" M: to code                   <dd>: KILL ALL",
+				" M: to code",
 				"",
 				" Misc:         UI (dap-view):",
 				" c: continue   S: scopes      D: disassembly",
@@ -117,50 +137,55 @@ return {
 				"               u: toggle UI",
 			}
 			local debug_map = {
-				["l"] = { dap.step_over, "Step Over" },
-				["j"] = { dap.step_into, "Step Into" },
-				["k"] = { dap.step_out, "Step Out" },
+				["l"] = { smart_step_over, "Step Over" },
+				["j"] = { smart_step_into, "Step Into" },
+				["k"] = { smart_step_out, "Step Out" },
 				["J"] = { dap.down, "Stack Down" },
 				["K"] = { dap.up, "Stack Up" },
 				["c"] = { dap.continue, "Continue" },
 				["C"] = { dap.run_to_cursor, "Run to Cursor" },
 				["r"] = { dap.restart, "Restart" },
 				["b"] = { dap.toggle_breakpoint, "Toggle Breakpoint" },
-				["u"] = { dapview.toggle, "Toggle UI" },
+				["u"] = {
+					function()
+						require("dap-view").toggle()
+					end,
+					"Toggle UI",
+				},
 				["M"] = { focus_code_window, "Focus Code" },
 				["S"] = {
 					function()
-						dapview.jump_to_view("scopes")
+						require("dap-view").jump_to_view("scopes")
 					end,
 					"Scopes",
 				},
 				["W"] = {
 					function()
-						dapview.jump_to_view("watches")
+						require("dap-view").jump_to_view("watches")
 					end,
 					"Watches",
 				},
 				["B"] = {
 					function()
-						dapview.jump_to_view("breakpoints")
+						require("dap-view").jump_to_view("breakpoints")
 					end,
 					"Breakpoints",
 				},
 				["T"] = {
 					function()
-						dapview.jump_to_view("threads")
+						require("dap-view").jump_to_view("threads")
 					end,
 					"Threads",
 				},
 				["R"] = {
 					function()
-						dapview.jump_to_view("repl")
+						require("dap-view").jump_to_view("repl")
 					end,
 					"REPL",
 				},
 				["D"] = {
 					function()
-						dapview.jump_to_view("disassembly")
+						require("dap-view").jump_to_view("disassembly")
 					end,
 					"Disassembly",
 				},
@@ -176,13 +201,8 @@ return {
 					end,
 					"Exit Mode",
 				},
-				["<leader>dd"] = {
-					function()
-						dap.terminate()
-					end,
-					"KILL SESSION",
-				},
 			}
+
 			local function open_help_win()
 				local buf = vim.api.nvim_create_buf(false, true)
 				vim.api.nvim_buf_set_lines(buf, 0, -1, false, help_lines)
@@ -248,10 +268,21 @@ return {
 			dap.listeners.after.event_terminated["dap_mode_off"] = disable_debug_mode_on_exit
 			dap.listeners.after.event_exited["dap_mode_off"] = disable_debug_mode_on_exit
 
-			vim.keymap.set("n", "<leader>dd", dap.continue, { desc = "DAP: Continue/Start" })
+			local function smart_dap_toggle()
+				if dap.session() then
+					DebugMode.toggle()
+				else
+					dap.continue()
+				end
+			end
+
+			vim.keymap.set("n", "<leader>dd", smart_dap_toggle, { desc = "DAP: Smart Toggle/Start" })
+
 			vim.keymap.set("n", "<leader>dk", dap.terminate, { desc = "DAP: Terminate" })
 			vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })
-			vim.keymap.set("n", "<leader>do", dapview.toggle, { desc = "DAP: Toggle UI" })
+			vim.keymap.set("n", "<leader>do", function()
+				require("dap-view").toggle()
+			end, { desc = "DAP: Toggle UI" })
 			vim.keymap.set("n", "<leader>dB", function()
 				dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
 			end, { desc = "DAP: Conditional Breakpoint" })

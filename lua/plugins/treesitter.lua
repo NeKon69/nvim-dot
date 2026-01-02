@@ -7,7 +7,25 @@ return {
 	},
 	config = function()
 		require("nvim-treesitter.configs").setup({
-			ensure_installed = { "c", "cpp", "lua", "vim", "vimdoc", "bash", "cmake", "json", "cuda", "glsl" },
+			ensure_installed = {
+				"c",
+				"cpp",
+				"lua",
+				"vim",
+				"vimdoc",
+				"bash",
+				"cmake",
+				"json",
+				"cuda",
+				"glsl",
+				"markdown",
+				"markdown_inline",
+				"doxygen",
+				"html",
+				"xml",
+				"comment",
+			},
+
 			sync_install = false,
 			auto_install = true,
 			highlight = {

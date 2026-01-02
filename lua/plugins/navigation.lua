@@ -1,5 +1,4 @@
 return {
-	-- Treesitter context - показывает текущую функцию/класс вверху
 	{
 		"nvim-treesitter/nvim-treesitter-context",
 		event = "VeryLazy",
@@ -10,7 +9,7 @@ return {
 			line_numbers = true,
 			multiline_threshold = 1,
 			trim_scope = "outer",
-			mode = "cursor",
+			mode = "topline",
 			separator = nil,
 		},
 		keys = {
@@ -24,14 +23,19 @@ return {
 		},
 	},
 
-	-- Flash - супербыстрая навигация по экрану
 	{
 		"folke/flash.nvim",
 		event = "VeryLazy",
 		opts = {
+			jump = {
+				autojump = false,
+			},
 			modes = {
 				char = {
-					enabled = false, -- Отключаем замену f/t/F/T
+					jump_labels = true,
+				},
+				search = {
+					enabled = true,
 				},
 			},
 		},
@@ -42,7 +46,7 @@ return {
 				function()
 					require("flash").jump()
 				end,
-				desc = "Flash",
+				desc = "Flash Jump",
 			},
 			{
 				"S",

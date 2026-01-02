@@ -141,14 +141,28 @@ return {
 	{
 		"nvim-lualine/lualine.nvim",
 		config = function()
-			-- Компонент для lualine
 			local function lualine_dap_component()
-				-- Проверяем глобальную переменную, которую мы установили в dap.lua
 				if _G.dap_layer_active then
 					return " DEBUG"
 				end
 				return ""
 			end
+
+			-- ✨ ИСПРАВЛЕНО: Стилизуем компоненты noice прямо здесь.
+			local noice_components = {
+				mode = {
+					require("noice").api.status.mode.get,
+					cond = require("noice").api.status.mode.has,
+					-- Цвет указывается здесь
+					color = { fg = "#ff9e64" },
+				},
+				search = {
+					require("noice").api.status.search.get,
+					cond = require("noice").api.status.search.has,
+					-- И здесь тоже
+					color = { fg = "#ff9e64" },
+				},
+			}
 
 			require("lualine").setup({
 				options = {
@@ -159,12 +173,11 @@ return {
 				sections = {
 					lualine_a = { "mode" },
 					lualine_b = { "branch", "diff", "diagnostics" },
-					lualine_c = { "filename" },
+					lualine_c = { noice_components.mode, "filename", noice_components.search },
 					lualine_x = {
-						-- Вот сюда мы добавляем наш компонент!
 						{
 							lualine_dap_component,
-							color = { bg = "#f7768e", fg = "#1a1b26" }, -- Красный из tokyonight
+							color = { bg = "#f7768e", fg = "#1a1b26" },
 						},
 						"encoding",
 						"fileformat",
@@ -235,6 +248,8 @@ return {
 			vim.api.nvim_set_hl(0, "WhichKeySeparator", { fg = "#6c7086" })
 			vim.api.nvim_set_hl(0, "WhichKeyDesc", { fg = "#ffffff" })
 			vim.api.nvim_set_hl(0, "WhichKeyFloat", { bg = "#1e1e2e" })
+			vim.api.nvim_set_hl(0, "@tag.comment", { link = "Keyword" })
+			vim.api.nvim_set_hl(0, "@variable.parameter.comment", { link = "Identifier" })
 			local hidden_harpoon_maps = {}
 			for i = 1, 9 do
 				table.insert(hidden_harpoon_maps, {

@@ -2,14 +2,18 @@ return {
 	{
 		"williamboman/mason.nvim",
 		config = function()
-			require("mason").setup()
+			require("mason").setup({
+				ui = {
+					border = "rounded",
+				},
+			})
 		end,
 	},
 	{
 		"williamboman/mason-lspconfig.nvim",
 		config = function()
 			require("mason-lspconfig").setup({
-				ensure_installed = { "clangd", "glslls", "lua_ls" },
+				ensure_installed = { "clangd", "lua_ls" },
 			})
 		end,
 	},
@@ -18,25 +22,26 @@ return {
 		config = function()
 			require("mason-tool-installer").setup({
 				ensure_installed = {
-					-- Форматтеры
-					"clang-format",
-					"stylua",
-					"black",
-					"rustfmt",
-
-					-- LSP серверы
+					"clangd",
+					"lua-language-server",
+					"pyright",
 					"cmake-language-server",
 					"glsl_analyzer",
-
-					-- Линтеры
+					"stylua",
+					"clang-format",
+					"black",
+					"rustfmt",
+					"jq",
+					"selene",
+					"ruff",
+					"cpplint",
+					"jsonlint",
+					"markdownlint",
+					"codespell",
 					"cmakelang",
 					"cmakelint",
-
-					-- Отладчики
-					"codelldb", -- Используем codelldb вместо cpptools
-                    "cpptools",
-
-					-- Утилиты
+					"codelldb",
+					"cpptools",
 					"asmfmt",
 				},
 				auto_update = false,

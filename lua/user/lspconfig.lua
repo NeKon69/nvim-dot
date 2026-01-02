@@ -21,87 +21,16 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 		end
 
-		vim.keymap.set("n", "gd", vim.lsp.buf.definition, vim.tbl_extend("force", opts, { desc = "Go to definition" }))
 		vim.keymap.set(
 			"n",
 			"gD",
 			vim.lsp.buf.declaration,
 			vim.tbl_extend("force", opts, { desc = "Go to declaration" })
 		)
-		vim.keymap.set(
-			"n",
-			"gi",
-			vim.lsp.buf.implementation,
-			vim.tbl_extend("force", opts, { desc = "Go to implementation" })
-		)
-		vim.keymap.set("n", "gr", vim.lsp.buf.references, vim.tbl_extend("force", opts, { desc = "Show references" }))
-		vim.keymap.set(
-			"n",
-			"gt",
-			vim.lsp.buf.type_definition,
-			vim.tbl_extend("force", opts, { desc = "Go to type definition" })
-		)
-
-		vim.keymap.set("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", opts, { desc = "Hover documentation" }))
-
-		local hover_timer = nil
-		local wait_time = 500
-
-		vim.api.nvim_create_autocmd("CursorHold", {
-			buffer = bufnr,
-			callback = function()
-				if vim.fn.mode() == "n" and vim.fn.pumvisible() == 0 then
-					if hover_timer then
-						vim.fn.timer_stop(hover_timer)
-					end
-					hover_timer = vim.fn.timer_start(wait_time, function()
-						if client and client.server_capabilities.hoverProvider then
-							local params = vim.lsp.util.make_position_params()
-							client.request("textDocument/hover", params, function(err, result)
-								if err or not result or not result.contents then
-									return
-								end
-
-								local markdown_lines = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
-								markdown_lines = vim.tbl_filter(function(line)
-									return line and line:match("%S")
-								end, markdown_lines)
-
-								if #markdown_lines == 0 then
-									return
-								end
-
-								vim.lsp.util.open_floating_preview(markdown_lines, "markdown", {
-									border = "rounded",
-									focusable = false,
-									max_height = 20,
-								})
-							end, bufnr)
-						end
-					end)
-				end
-			end,
-		})
-
-		vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "Rename" }))
-		vim.keymap.set(
-			{ "n", "v" },
-			"<leader>ca",
-			vim.lsp.buf.code_action,
-			vim.tbl_extend("force", opts, { desc = "Code action" })
-		)
 
 		vim.keymap.set("n", "<leader>fm", function()
 			vim.lsp.buf.format({ async = true })
 		end, vim.tbl_extend("force", opts, { desc = "Format" }))
-
-		vim.keymap.set(
-			"n",
-			"[d",
-			vim.diagnostic.goto_prev,
-			vim.tbl_extend("force", opts, { desc = "Previous diagnostic" })
-		)
-		vim.keymap.set("n", "]d", vim.diagnostic.goto_next, vim.tbl_extend("force", opts, { desc = "Next diagnostic" }))
 
 		if client and client.server_capabilities.codeLensProvider then
 			vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "InsertLeave" }, {
@@ -129,20 +58,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				group = highlight_group,
 				buffer = bufnr,
 				callback = vim.lsp.buf.clear_references,
-			})
-		end
-
-		local ok, wk = pcall(require, "which-key")
-		if ok then
-			wk.add({
-				{ "gd", desc = "Go to definition", buffer = 0 },
-				{ "gD", desc = "Go to declaration", buffer = 0 },
-				{ "gi", desc = "Go to implementation", buffer = 0 },
-				{ "gr", desc = "Show references", buffer = 0 },
-				{ "gt", desc = "Go to type definition", buffer = 0 },
-				{ "K", desc = "Hover documentation", buffer = 0 },
-				{ "[d", desc = "Previous diagnostic", buffer = 0 },
-				{ "]d", desc = "Next diagnostic", buffer = 0 },
 			})
 		end
 	end,

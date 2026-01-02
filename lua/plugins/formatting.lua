@@ -1,7 +1,7 @@
 return {
 	{
 		"stevearc/conform.nvim",
-		event = { "BufWritePre" },
+		event = { "BufWritePre", "BufWritePost" },
 		cmd = { "ConformInfo" },
 		keys = {
 			{
@@ -23,20 +23,11 @@ return {
 				rust = { "rustfmt" },
 				json = { "jq" },
 			},
-
 			format_on_save = {
 				timeout_ms = 1000,
 				lsp_fallback = true,
-				async = false,
 			},
 		},
-		init = function()
-			vim.api.nvim_create_autocmd("VimLeavePre", {
-				callback = function()
-					vim.g.is_exiting = true
-				end,
-			})
-		end,
 	},
 	{
 		"mfussenegger/nvim-lint",
@@ -45,7 +36,12 @@ return {
 			local lint = require("lint")
 
 			lint.linters_by_ft = {
-				-- python = { "pylint" }, -- Пример, если нужен линтер для питона
+				lua = { "selene" },
+				python = { "ruff" },
+				c = { "cpplint" },
+				cpp = { "cpplint" },
+				json = { "jsonlint" },
+				markdown = { "markdownlint" },
 			}
 
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })

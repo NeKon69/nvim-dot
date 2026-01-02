@@ -15,16 +15,15 @@ return {
 		local lspkind = require("lspkind")
 		local luasnip = require("luasnip")
 
-		vim.api.nvim_set_hl(0, "CmpBorder", { fg = "#FF00FF" })
+		vim.api.nvim_set_hl(0, "CmpBorder", { fg = "#fF00FF" })
+
 		local window_opts = {
-			completion = {
-				border = "rounded",
+			completion = cmp.config.window.bordered({
 				winhighlight = "FloatBorder:CmpBorder",
-			},
-			documentation = {
-				border = "rounded",
+			}),
+			documentation = cmp.config.window.bordered({
 				winhighlight = "FloatBorder:CmpBorder",
-			},
+			}),
 		}
 
 		cmp.setup({
@@ -53,9 +52,8 @@ return {
 			mapping = {
 				["<CR>"] = cmp.mapping.confirm({ select = false }),
 				["<C-Space>"] = cmp.mapping.complete(),
-				["<C-n>"] = cmp.mapping.select_next_item(),
-				["<C-p>"] = cmp.mapping.select_prev_item(),
-				["<M-j>"] = cmp.mapping(function(fallback)
+
+				["<M-s>"] = cmp.mapping(function(fallback)
 					if cmp.visible() then
 						cmp.select_next_item()
 					elseif luasnip.expand_or_jumpable() then
@@ -64,7 +62,7 @@ return {
 						fallback()
 					end
 				end, { "i", "s" }),
-				["<M-k>"] = cmp.mapping(function(fallback)
+				["<M-w>"] = cmp.mapping(function(fallback)
 					if cmp.visible() then
 						cmp.select_prev_item()
 					elseif luasnip.jumpable(-1) then
@@ -74,24 +72,39 @@ return {
 					end
 				end, { "i", "s" }),
 			},
-			window = window_opts,
+			window = {
+				completion = window_opts.completion,
+				documentation = window_opts.documentation,
+			},
 		})
 
 		cmp.setup.cmdline("/", {
 			mapping = cmp.mapping.preset.cmdline(),
 			sources = { { name = "buffer" } },
-			window = window_opts,
+			window = {
+				completion = window_opts.completion,
+			},
 		})
 
 		cmp.setup.cmdline(":", {
-			mapping = cmp.mapping.preset.cmdline(),
+			mapping = cmp.mapping.preset.cmdline({
+				["<CR>"] = cmp.mapping(function(fallback)
+					if cmp.visible() and cmp.get_selected_entry() then
+						cmp.confirm({ behavior = cmp.ConfirmBehavior.Replace, select = true })
+					else
+						fallback()
+					end
+				end, { "c" }),
+			}),
 			sources = cmp.config.sources({
 				{ name = "path" },
 			}, {
 				{ name = "cmdline" },
 			}),
 			matching = { disallow_symbol_nonprefix_matching = false },
-			window = window_opts,
+			window = {
+				completion = window_opts.completion,
+			},
 		})
 	end,
 }
