@@ -15,7 +15,7 @@ return {
 		include_only_installed_plugins = true,
 	},
 	keys = {
-		{ "<leader>hh", "<cmd>Cheatsheet<cr>", desc = "Cheatsheet" },
-		{ "<leader>ha", "<cmd>CheatsheetEdit<cr>", desc = "Add/Edit Cheatsheet" },
+		{ "<leader>??", "<cmd>Cheatsheet<cr>", desc = "Cheatsheet" },
+		{ "<leader>?a", "<cmd>CheatsheetEdit<cr>", desc = "Add/Edit Cheatsheet" },
 	},
 }

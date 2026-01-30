@@ -6,6 +6,7 @@ return {
 			"hrsh7th/cmp-nvim-lsp",
 		},
 		config = function()
+			require("user.lspconfig")
 			vim.lsp.config("clangd", {
 				cmd = {
 					"clangd",

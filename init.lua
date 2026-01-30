@@ -54,6 +54,7 @@ end
 
 vim.opt.rtp:prepend(lazypath)
 
+require("user.triforce_bridge")
 require("user.options")
 require("user.keymaps")
 require("lazy").setup("plugins", {
@@ -62,7 +63,5 @@ require("lazy").setup("plugins", {
 	},
 })
 require("user.project-setup").setup()
-local action_logger = require("user.key-logger")
-
-vim.api.nvim_create_user_command("StartActionLogger", action_logger.start, {})
-vim.api.nvim_create_user_command("StopActionLogger", action_logger.stop, {})
+require("user.lspconfig")
+require("user.key-logger")

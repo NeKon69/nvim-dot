@@ -8,6 +8,7 @@ return {
 		},
 		config = function()
 			local dap = require("dap")
+			dap.defaults.fallback.auto_continue_if_many_stopped = true
 
 			require("nvim-dap-virtual-text").setup({
 				enabled = true,
