@@ -5,6 +5,7 @@ return {
 			"thehamsta/nvim-dap-virtual-text",
 			"jay-babu/mason-nvim-dap.nvim",
 			"igorlfs/nvim-dap-view",
+			"stevearc/overseer.nvim",
 		},
 		config = function()
 			local dap = require("dap")
@@ -272,6 +273,39 @@ return {
 			local function smart_dap_toggle()
 				if dap.session() then
 					DebugMode.toggle()
+					return
+				end
+
+				local overseer = require("overseer")
+				local run_config = _G.BuildSystem.get_current_run_config()
+
+				if run_config then
+					vim.notify("🔨 Building before debug...", vim.log.levels.INFO)
+					overseer.run_task({
+						name = "build",
+						params = { profile = _G.BuildSystem.profile },
+					}, function(task)
+						if not task then
+							vim.notify("❌ Build task not found", vim.log.levels.ERROR)
+							return
+						end
+						task:subscribe("on_complete", function(_, status)
+							if status == "SUCCESS" then
+								vim.notify("✅ Build success, starting DAP", vim.log.levels.INFO)
+								dap.run({
+									name = "Overseer Debug",
+									type = "codelldb",
+									request = "launch",
+									program = run_config.program,
+									args = run_config.args,
+									cwd = "${workspaceFolder}",
+									preRunCommands = get_anti_asm_commands(),
+								})
+							else
+								vim.notify("❌ Build failed, debug aborted", vim.log.levels.ERROR)
+							end
+						end)
+					end)
 				else
 					dap.continue()
 				end
@@ -294,7 +328,6 @@ return {
 		config = function()
 			require("dap-view").setup({
 				auto_toggle = true,
-				windows = { terminal = { start_hidden = false } },
 				winbar = {
 					show = true,
 					sections = { "watches", "scopes", "exceptions", "breakpoints", "threads", "repl", "disassembly" },
