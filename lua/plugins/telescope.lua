@@ -1,7 +1,13 @@
 return {
 	"nvim-telescope/telescope.nvim",
 	tag = "0.1.5",
-	dependencies = { "nvim-lua/plenary.nvim" },
+	dependencies = {
+		"nvim-lua/plenary.nvim",
+		-- Адаптер для Telescope, чтобы перехватывать vim.ui.select (ФИКС UI БАГА)
+		"nvim-telescope/telescope-ui-select.nvim",
+		-- Установленный плагин для быстрого поиска
+		"nvim-telescope/telescope-fzf-native.nvim",
+	},
 	config = function()
 		local builtin = require("telescope.builtin")
 		local telescope = require("telescope")
@@ -44,7 +50,27 @@ return {
 
 				file_ignore_patterns = { "node_modules", ".git/" },
 			},
+			-- === КОНФИГУРАЦИЯ РАСШИРЕНИЙ ===
+			extensions = {
+				-- Настройка FZF-Native (для ускорения)
+				fzf = {
+					fuzzy = true,
+					override_generic_sorter = true,
+					override_file_sorter = true,
+					case_mode = "smart_case",
+				},
+				-- Настройка UI-Select (для vim.ui.select)
+				["ui-select"] = {
+					require("telescope.themes").get_dropdown({
+						-- Здесь можно настроить внешний вид, если нужно
+					}),
+				},
+			},
 		})
+
+		-- === ПОДКЛЮЧЕНИЕ РАСШИРЕНИЙ ===
+		require("telescope").load_extension("fzf")
+		require("telescope").load_extension("ui-select") -- Заменяет vim.ui.select на Telescope
 
 		-- Цвета (Vim API)
 		vim.api.nvim_set_hl(0, "TelescopeBorder", { fg = "#5daeff", bg = "NONE" })
