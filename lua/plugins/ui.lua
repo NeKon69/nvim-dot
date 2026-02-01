@@ -92,6 +92,150 @@ return {
 	{
 		"nvim-lualine/lualine.nvim",
 		config = function()
+			local symbols = {
+				spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+				ok = "",
+				err = "",
+				warn = "",
+				target = "󰆧",
+				profile = "",
+			}
+
+			local colors = {
+				running = "#61afef",
+				success = "#98be65",
+				fail = "#ff6c6b",
+				pending = "#ECBE7B",
+				p_debug = "#d19a66",
+				p_release = "#98be65",
+				p_default = "#c678dd",
+			}
+
+			local function get_main_task()
+				local ok, overseer = pcall(require, "overseer")
+				if not ok then
+					return nil
+				end
+
+				local tasks = overseer.list_tasks({ include_ephemeral = true })
+				if #tasks == 0 then
+					return nil
+				end
+
+				local now = os.time()
+				local latest_task = nil
+				local latest_time = -1
+
+				for _, t in ipairs(tasks) do
+					local t_time = 0
+					if t.status == "RUNNING" then
+						t_time = now + 100
+					elseif t.status == "PENDING" then
+						t_time = t.time_start or 0
+					else
+						t_time = t.time_end or 0
+					end
+
+					if t_time > latest_time then
+						latest_time = t_time
+						latest_task = t
+					end
+				end
+
+				return latest_task
+			end
+
+			local function overseer_status()
+				local task = get_main_task()
+				local now = os.time()
+
+				if task then
+					local t_time = (task.status == "RUNNING" or task.status == "PENDING") and (task.time_start or now)
+						or (task.time_end or 0)
+
+					local diff = os.difftime(now, t_time)
+
+					local is_finished = (
+						task.status == "SUCCESS"
+						or task.status == "FAILURE"
+						or task.status == "CANCELED"
+					)
+					if is_finished and (t_time == 0 or diff > 5) then
+						task = nil
+					end
+				end
+
+				if task then
+					if task.status == "RUNNING" then
+						local spinner =
+							symbols.spinner[math.floor(vim.loop.hrtime() / 120000000) % #symbols.spinner + 1]
+						return string.format("%s Running %s", spinner, task.name)
+					elseif task.status == "PENDING" then
+						return string.format("%s Pending %s...", symbols.warn, task.name)
+					elseif task.status == "FAILURE" or task.status == "CANCELED" then
+						return string.format("%s Failed %s", symbols.err, task.name)
+					elseif task.status == "SUCCESS" then
+						return string.format("%s Done %s", symbols.ok, task.name)
+					end
+				end
+
+				local bs = _G.BuildSystem
+				if not bs then
+					return "..."
+				end
+
+				local has_targets = bs.available_targets and #bs.available_targets > 0
+				local t = bs.target or "Def"
+				local p = bs.profile or "norm"
+
+				if has_targets then
+					return string.format("%s %s  %s %s", symbols.target, t, symbols.profile, p)
+				else
+					return string.format("%s %s", symbols.profile, p)
+				end
+			end
+
+			local function overseer_color()
+				local task = get_main_task()
+				local now = os.time()
+
+				if task then
+					local t_time = (task.status == "RUNNING" or task.status == "PENDING") and (task.time_start or now)
+						or (task.time_end or 0)
+
+					local is_finished = (
+						task.status == "SUCCESS"
+						or task.status == "FAILURE"
+						or task.status == "CANCELED"
+					)
+					if not (is_finished and (t_time == 0 or os.difftime(now, t_time) > 5)) then
+						if task.status == "RUNNING" then
+							return { fg = colors.running, gui = "bold" }
+						end
+						if task.status == "PENDING" then
+							return { fg = colors.pending, gui = "bold" }
+						end
+						if task.status == "SUCCESS" then
+							return { fg = colors.success, gui = "bold" }
+						end
+						if task.status == "FAILURE" or task.status == "CANCELED" then
+							return { fg = colors.fail, gui = "bold" }
+						end
+					end
+				end
+
+				local bs = _G.BuildSystem
+				if bs and bs.profile then
+					local p = bs.profile:lower()
+					if p:find("debug") then
+						return { fg = colors.p_debug, gui = "bold" }
+					end
+					if p:find("release") then
+						return { fg = colors.p_release, gui = "bold" }
+					end
+				end
+				return { fg = colors.p_default }
+			end
 			local function lualine_dap_component()
 				if _G.dap_layer_active then
 					return " DEBUG"
@@ -112,6 +256,7 @@ return {
 			}
 			require("lualine").setup({
 				options = {
+					refresh = { statusline = 100 },
 					theme = "tokyonight",
 					component_separators = { left = "", right = "" },
 					section_separators = { left = "", right = "" },
@@ -119,7 +264,18 @@ return {
 				sections = {
 					lualine_a = { "mode" },
 					lualine_b = { "branch", "diff", "diagnostics" },
-					lualine_c = { noice_components.mode, "filename", noice_components.search },
+					lualine_c = {
+						noice_components.mode,
+						"filename",
+						noice_components.search,
+						{
+							overseer_status,
+							color = overseer_color,
+							on_click = function()
+								vim.cmd("OverseerToggle")
+							end,
+						},
+					},
 					lualine_x = {
 						{ lualine_dap_component, color = { bg = "#f7768e", fg = "#1a1b26" } },
 						{

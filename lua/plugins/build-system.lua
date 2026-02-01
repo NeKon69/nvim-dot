@@ -4,7 +4,7 @@ _G.BuildSystem = _G.BuildSystem
 		target = "Default",
 		available_profiles = {},
 		available_targets = {},
-		overrides = {}, -- Хранилище сессионных правок команд
+		overrides = {},
 	}
 
 return {
@@ -50,8 +50,6 @@ return {
 		local state_file = vim.fn.stdpath("state") .. "/overseer_profiles.json"
 		local global_config_path = vim.fn.stdpath("config") .. "/lua/user/overseer_quick_run.lua"
 
-		-- === СИСТЕМНЫЕ ФУНКЦИИ (Состояние) ===
-
 		local function save_state()
 			local data = {}
 			if vim.fn.filereadable(state_file) == 1 then
@@ -82,8 +80,6 @@ return {
 			end
 		end
 
-		-- === ПАРСЕР TOML ===
-
 		local function get_toml_tasks()
 			local files = vim.fs.find({ "overseer.toml", ".overseer.toml" }, { upward = true, type = "file" })
 			if #files == 0 then
@@ -99,7 +95,6 @@ return {
 
 			for _, line in ipairs(lines) do
 				line = vim.trim(line)
-
 				if line:match("^profiles%s*=") then
 					local content = line:match("%[(.-)%]")
 					if content then
@@ -126,6 +121,7 @@ return {
 								components = { "default" },
 								cmd = "",
 								depends_on = {},
+								watch = false, -- по умолчанию выключено
 							}
 							table.insert(tasks_from_toml, current_task)
 						end
@@ -136,6 +132,8 @@ return {
 						current_task.cmd = value
 					elseif key == "depends" then
 						table.insert(current_task.depends_on, value)
+					elseif key == "watch" then
+						current_task.watch = (value == "true")
 					end
 				end
 			end
@@ -151,8 +149,6 @@ return {
 			end
 		end
 
-		-- === ГЕНЕРАТОР ШАБЛОНОВ ===
-
 		overseer.register_template({
 			name = "toml_tasks_provider",
 			generator = function(search, cb)
@@ -163,14 +159,12 @@ return {
 
 				for _, t in ipairs(raw_tasks) do
 					local task_name = t.raw_name
-					local task_target = nil
 					local is_visible = false
-
 					local dot_pos = task_name:find("%.")
+
 					if dot_pos then
-						task_target = task_name:sub(1, dot_pos - 1)
-						task_name = task_name:sub(dot_pos + 1)
-						if task_target == current_target then
+						if task_name:sub(1, dot_pos - 1) == current_target then
+							task_name = task_name:sub(dot_pos + 1)
 							is_visible = true
 						end
 					else
@@ -210,12 +204,24 @@ return {
 									table.insert(task_components, { "dependencies", tasks = dep_tasks })
 								end
 
+								-- Добавляем Watcher если включено
+								if t.watch then
+									table.insert(task_components, { "restart_on_save", paths = { vim.fn.getcwd() } })
+								end
+
+								local display_name
+								if #_G.BuildSystem.available_targets > 0 then
+									display_name = string.format("%s [%s:%s]", task_name, params.target, params.profile)
+								else
+									display_name = string.format("%s [%s]", task_name, params.profile)
+								end
+
 								return {
-									cmd = is_run and "echo 'Launching interactive terminal...'" or final_cmd,
+									cmd = is_run and "echo 'Launching terminal...'" or final_cmd,
 									strategy = "jobstart",
 									components = task_components,
 									metadata = { real_cmd = final_cmd },
-									name = string.format("%s [%s:%s]", task_name, params.target, params.profile),
+									name = display_name,
 								}
 							end,
 						})
@@ -224,8 +230,6 @@ return {
 				cb(templates)
 			end,
 		})
-
-		-- === АВТОКОМАНДЫ ===
 
 		local build_sys_group = vim.api.nvim_create_augroup("BuildSystemAutoUpdate", { clear = true })
 		vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
@@ -244,8 +248,6 @@ return {
 				vim.notify("Overseer config reloaded", vim.log.levels.INFO)
 			end,
 		})
-
-		-- === ФУНКЦИИ ЗАПУСКА ===
 
 		local function run_task_by_name(name)
 			overseer.run_task({
@@ -287,8 +289,6 @@ return {
 			run_task_by_name("deploy")
 		end, { desc = "🚀 Deploy" })
 
-		-- === QUICK RUN (Глобальный + Локальный) ===
-
 		local function get_quick_run_defaults()
 			local hardcoded = {
 				cpp = "g++ -O3 -Wall {file} -o {bin} && {bin}",
@@ -300,7 +300,6 @@ return {
 				lua = "lua {file}",
 				rs = "rustc {file} -o {bin} && {bin}",
 			}
-
 			if vim.fn.filereadable(global_config_path) == 1 then
 				local ok, user_defaults = pcall(dofile, global_config_path)
 				if ok and type(user_defaults) == "table" then
@@ -310,102 +309,83 @@ return {
 			return hardcoded
 		end
 
-		local function get_quick_run_cmd()
-			local file = vim.api.nvim_buf_get_name(0)
-			local root = vim.fn.fnamemodify(file, ":t:r")
-			local ext = vim.fn.fnamemodify(file, ":e")
-			local bin = "/tmp/nvim_build_" .. root
-
-			local defaults = get_quick_run_defaults()
-			local raw_cmd = defaults[ext] or ""
-
-			-- Замена плейсхолдеров
-			local final_cmd = raw_cmd:gsub("{file}", "'" .. file .. "'"):gsub("{bin}", "'" .. bin .. "'")
-			return final_cmd, root
-		end
-
 		local function execute_quick_run(cmd, name)
 			if cmd == "" then
-				vim.notify("No command for this file type. Create " .. global_config_path, vim.log.levels.WARN)
 				return
 			end
-
 			local task = overseer.new_task({
 				name = "Quick Run: " .. name,
 				cmd = "echo 'Launching terminal...'",
 				metadata = { real_cmd = cmd },
 				components = { "default" },
 			})
-
 			task:subscribe("on_start", function()
 				require("toggleterm").exec(cmd)
 				task:set_status("SUCCESS")
 			end)
-
 			task:start()
 			vim.notify("🚀 Running: " .. name, vim.log.levels.INFO)
 		end
 
 		vim.keymap.set("n", "<leader>bx", function()
-			local cmd, name = get_quick_run_cmd()
-			execute_quick_run(cmd, name)
+			local file = vim.api.nvim_buf_get_name(0)
+			local root = vim.fn.fnamemodify(file, ":t:r")
+			local ext = vim.fn.fnamemodify(file, ":e")
+			local bin = "/tmp/nvim_build_" .. root
+			local defaults = get_quick_run_defaults()
+			local raw_cmd = defaults[ext] or ""
+			local final_cmd = raw_cmd:gsub("{file}", "'" .. file .. "'"):gsub("{bin}", "'" .. bin .. "'")
+			execute_quick_run(final_cmd, root)
 		end, { desc = "🚀 Instant Run" })
 
 		vim.keymap.set("n", "<leader>bX", function()
-			local default_cmd, root_name = get_quick_run_cmd()
-			vim.ui.input({ prompt = "Configure Quick Run: ", default = default_cmd }, function(input)
+			local file = vim.api.nvim_buf_get_name(0)
+			local root = vim.fn.fnamemodify(file, ":t:r")
+			local ext = vim.fn.fnamemodify(file, ":e")
+			local bin = "/tmp/nvim_build_" .. root
+			local defaults = get_quick_run_defaults()
+			local raw_cmd = defaults[ext] or ""
+			local final_cmd = raw_cmd:gsub("{file}", "'" .. file .. "'"):gsub("{bin}", "'" .. bin .. "'")
+
+			vim.ui.input({ prompt = "Configure Quick Run: ", default = final_cmd }, function(input)
 				if not input or input == "" then
 					return
 				end
-				execute_quick_run(input, root_name)
-
-				if input ~= default_cmd then
+				execute_quick_run(input, root)
+				if input ~= final_cmd then
 					vim.defer_fn(function()
-						vim.ui.input(
-							{ prompt = "Save as new project target? (leave empty to skip): " },
-							function(target_name)
-								if not target_name or target_name == "" then
-									return
-								end
-								local _, filename = get_toml_tasks()
-								if not filename then
-									filename = vim.fn.getcwd() .. "/overseer.toml"
-								end
-								local content = vim.fn.filereadable(filename) == 1 and vim.fn.readfile(filename) or {}
-
-								local t_idx = 0
-								for i, line in ipairs(content) do
-									if line:match("^targets%s*=") then
-										t_idx = i
-										break
-									end
-								end
-								if t_idx > 0 then
-									if content[t_idx]:match("%[%s*%]") then
-										content[t_idx] = content[t_idx]:gsub("%[%s*%]", '["' .. target_name .. '"]')
-									else
-										content[t_idx] = content[t_idx]:gsub(
-											"(targets%s*=%s*%[.-)(%])",
-											'%1, "' .. target_name .. '"%2'
-										)
-									end
-								else
-									table.insert(content, 1, 'targets = ["' .. target_name .. '"]')
-								end
-								table.insert(content, "")
-								table.insert(content, "[" .. target_name .. ".run]")
-								table.insert(content, 'cmd = "' .. input:gsub('"', '\\"') .. '"')
-								vim.fn.writefile(content, filename)
-								vim.notify("Target '" .. target_name .. "' saved locally")
-								overseer.clear_task_cache()
+						vim.ui.input({ prompt = "Save as new project target?: " }, function(target_name)
+							if not target_name or target_name == "" then
+								return
 							end
-						)
+							local _, filename = get_toml_tasks()
+							if not filename then
+								filename = vim.fn.getcwd() .. "/overseer.toml"
+							end
+							local content = vim.fn.filereadable(filename) == 1 and vim.fn.readfile(filename) or {}
+							local t_idx = 0
+							for i, line in ipairs(content) do
+								if line:match("^targets%s*=") then
+									t_idx = i
+									break
+								end
+							end
+							if t_idx > 0 then
+								content[t_idx] =
+									content[t_idx]:gsub("(targets%s*=%s*%[.-)(%])", '%1, "' .. target_name .. '"%2')
+							else
+								table.insert(content, 1, 'targets = ["' .. target_name .. '"]')
+							end
+							table.insert(content, "")
+							table.insert(content, "[" .. target_name .. ".run]")
+							table.insert(content, 'cmd = "' .. input:gsub('"', '\\"') .. '"')
+							vim.fn.writefile(content, filename)
+							overseer.clear_task_cache()
+						end)
 					end, 500)
 				end
 			end)
 		end, { desc = "⚙️ Config Run" })
-
-		-- === УПРАВЛЕНИЕ ===
 
 		vim.keymap.set("n", "<leader>bP", function()
 			vim.schedule(function()
@@ -512,8 +492,7 @@ return {
 						local start_idx = 0
 						local h1, h2 = "[" .. choice.raw_name .. "]", "[boring_" .. choice.raw_name .. "]"
 						for i, line in ipairs(content) do
-							local tline = vim.trim(line)
-							if tline == h1 or tline == h2 then
+							if vim.trim(line) == h1 or vim.trim(line) == h2 then
 								start_idx = i
 								break
 							end
@@ -526,7 +505,6 @@ return {
 								if content[i]:match("^cmd%s*=") then
 									content[i] = string.format('cmd = "%s"', (input:gsub('"', '\\"')))
 									vim.fn.writefile(content, filename)
-									vim.notify("Changes saved to disk")
 									if _G.BuildSystem.overrides[choice.raw_name] then
 										_G.BuildSystem.overrides[choice.raw_name] = nil
 									end
@@ -538,8 +516,5 @@ return {
 				end)
 			end)
 		end, { desc = "💾 Edit (Disk)" })
-
-		vim.keymap.set("n", "<leader>bl", "<cmd>OverseerToggle bottom<cr>", { desc = "📋 Task List" })
-		vim.keymap.set("n", "<leader>b.", "<cmd>OverseerRun<cr>", { desc = "📋 All Tasks" })
 	end,
 }
