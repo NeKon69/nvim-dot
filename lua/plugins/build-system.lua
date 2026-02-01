@@ -4,7 +4,7 @@ _G.BuildSystem = _G.BuildSystem
 		target = "Default",
 		available_profiles = {},
 		available_targets = {},
-		overrides = {},
+		overrides = {}, -- Хранилище сессионных правок команд
 	}
 
 return {
@@ -50,6 +50,8 @@ return {
 		local state_file = vim.fn.stdpath("state") .. "/overseer_profiles.json"
 		local global_config_path = vim.fn.stdpath("config") .. "/lua/user/overseer_quick_run.lua"
 
+		-- === СИСТЕМНЫЕ ФУНКЦИИ (Состояние) ===
+
 		local function save_state()
 			local data = {}
 			if vim.fn.filereadable(state_file) == 1 then
@@ -63,6 +65,10 @@ return {
 				target = _G.BuildSystem.target,
 			}
 			vim.fn.writefile({ vim.fn.json_encode(data) }, state_file)
+			-- Обновляем статус-бар
+			pcall(function()
+				require("lualine").refresh()
+			end)
 		end
 
 		local function load_state()
@@ -80,6 +86,8 @@ return {
 			end
 		end
 
+		-- === ПАРСЕР TOML ===
+
 		local function get_toml_tasks()
 			local files = vim.fs.find({ "overseer.toml", ".overseer.toml" }, { upward = true, type = "file" })
 			if #files == 0 then
@@ -95,6 +103,7 @@ return {
 
 			for _, line in ipairs(lines) do
 				line = vim.trim(line)
+
 				if line:match("^profiles%s*=") then
 					local content = line:match("%[(.-)%]")
 					if content then
@@ -121,7 +130,7 @@ return {
 								components = { "default" },
 								cmd = "",
 								depends_on = {},
-								watch = false, -- по умолчанию выключено
+								watch = false,
 							}
 							table.insert(tasks_from_toml, current_task)
 						end
@@ -147,7 +156,12 @@ return {
 					_G.BuildSystem.target = _G.BuildSystem.available_targets[1]
 				end
 			end
+			pcall(function()
+				require("lualine").refresh()
+			end)
 		end
+
+		-- === ГЕНЕРАТОР ШАБЛОНОВ ===
 
 		overseer.register_template({
 			name = "toml_tasks_provider",
@@ -204,7 +218,6 @@ return {
 									table.insert(task_components, { "dependencies", tasks = dep_tasks })
 								end
 
-								-- Добавляем Watcher если включено
 								if t.watch then
 									table.insert(task_components, { "restart_on_save", paths = { vim.fn.getcwd() } })
 								end
@@ -231,6 +244,38 @@ return {
 			end,
 		})
 
+		-- === ИНТЕГРАЦИЯ С DAP (FIX) ===
+
+		_G.BuildSystem.get_current_run_config = function()
+			local tasks, _ = get_toml_tasks()
+			local target = _G.BuildSystem.target
+			local profile = _G.BuildSystem.profile
+
+			-- Ищем подходящую run задачу
+			local search_name = (#_G.BuildSystem.available_targets > 0 and target ~= "Default") and (target .. ".run")
+				or "run"
+
+			for _, t in ipairs(tasks) do
+				if t.raw_name == search_name then
+					-- Применяем плейсхолдеры
+					local cmd = t.cmd:gsub("{profile}", profile):gsub("{target}", target)
+					-- Разбиваем на бинарник и аргументы
+					local parts = vim.split(cmd, " ")
+					local program = table.remove(parts, 1)
+					-- Делаем путь к программе абсолютным для DAP
+					program = vim.fn.fnamemodify(program, ":p")
+
+					return {
+						program = program,
+						args = parts,
+					}
+				end
+			end
+			return nil
+		end
+
+		-- === АВТОКОМАНДЫ ===
+
 		local build_sys_group = vim.api.nvim_create_augroup("BuildSystemAutoUpdate", { clear = true })
 		vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
 			group = build_sys_group,
@@ -248,6 +293,8 @@ return {
 				vim.notify("Overseer config reloaded", vim.log.levels.INFO)
 			end,
 		})
+
+		-- === ФУНКЦИИ ЗАПУСКА ===
 
 		local function run_task_by_name(name)
 			overseer.run_task({
@@ -288,6 +335,8 @@ return {
 		vim.keymap.set("n", "<leader>bd", function()
 			run_task_by_name("deploy")
 		end, { desc = "🚀 Deploy" })
+
+		-- === QUICK RUN ===
 
 		local function get_quick_run_defaults()
 			local hardcoded = {
