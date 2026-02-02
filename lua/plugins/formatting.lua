@@ -40,6 +40,10 @@ return {
 				python = { "ruff" },
 				json = { "jsonlint" },
 				markdown = { "markdownlint" },
+				cuda = { "clangtidy" },
+				cu = { "clangtidy" },
+				cpp = { "clangtidy" },
+				c = { "clangtidy" },
 			}
 
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })

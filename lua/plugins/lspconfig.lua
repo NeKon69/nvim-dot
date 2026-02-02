@@ -11,7 +11,6 @@ return {
 				cmd = {
 					"clangd",
 					"--background-index",
-					"--clang-tidy",
 					"--query-driver=/opt/cuda/bin/nvcc,/usr/bin/c++,/usr/bin/g++,/usr/bin/clang++",
 					"--header-insertion=iwyu",
 					"--completion-style=detailed",
