@@ -108,3 +108,13 @@ map("n", "<leader>bb", "<cmd>Telescope overseer<CR>", { desc = "Build: Run Task"
 map("n", "<leader>br", "<cmd>OverseerRunLast<CR>", { desc = "Build: Run Last" })
 map("n", "<leader>bs", "<cmd>OverseerTaskAction stop<CR>", { desc = "Build: Stop" })
 map("n", "<leader>bo", "<cmd>OverseerToggle<CR>", { desc = "Build: Toggle Panel" })
+
+local history = require("user.history")
+vim.keymap.set("n", "<leader>ph", history.list_history, { desc = "📜 Project History" })
+
+vim.keymap.set("n", "<M-q>", function()
+	history.nav_history(-1)
+end, { desc = "History Back" })
+vim.keymap.set("n", "<M-w>", function()
+	history.nav_history(1)
+end, { desc = "History Forward" })

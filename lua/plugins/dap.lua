@@ -58,6 +58,7 @@ return {
 			dap.configurations.cpp = {
 				{
 					name = "Launch file",
+					stdio = { "payload.bin", nil, nil },
 					type = "codelldb",
 					request = "launch",
 					program = function()

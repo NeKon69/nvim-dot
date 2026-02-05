@@ -2,6 +2,18 @@ return {
 	"MeanderingProgrammer/render-markdown.nvim",
 	dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
 	opts = {
+
+		overrides = {
+			buftype = {
+				nofile = {
+					sign = { enabled = false },
+				},
+			},
+		},
+
+		padding = {
+			highlight = "NormalFloat",
+		},
 		enabled = true,
 		render_modes = { "n", "c", "t", "v", "i", "V", "s", "S" },
 		heading = {

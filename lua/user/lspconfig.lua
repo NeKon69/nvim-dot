@@ -26,13 +26,16 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 		end
 
+		local history = require("user.history")
 		-- ТВОЙ ПРОВЕРЕННЫЙ СПИСОК G
-		force_map("gd", "<cmd>Lspsaga goto_definition<CR>", "LSP Definition")
-		force_map("gp", "<cmd>Lspsaga peek_definition<CR>", "LSP Peek Definition")
-		force_map("gD", "<cmd>Lspsaga goto_declaration<CR>", "LSP Declaration")
-		force_map("gi", vim.lsp.buf.implementation, "LSP Implementation")
-		force_map("gh", "<cmd>Lspsaga finder<CR>", "LSP Finder (Saga)")
-		force_map("gt", "<cmd>Lspsaga goto_type_definition<CR>", "LSP Type Definition")
+		force_map("<M-CR>", "<cmd>Lspsaga code_action<CR>", "Code Action (Alt+Enter)")
+		force_map("gd", history.wrap_jump("Lspsaga goto_definition", "Definition"), "LSP Definition")
+		force_map("gp", history.wrap_jump("Lspsaga peek_definition", "Peek Def"), "LSP Peek Definition")
+		force_map("gD", history.wrap_jump("Lspsaga goto_declaration", "Declaration"), "LSP Declaration")
+		force_map("gi", history.wrap_jump(vim.lsp.buf.implementation, "Implement"), "LSP Implementation")
+		force_map("gt", history.wrap_jump("Lspsaga goto_type_definition", "Type Def"), "LSP Type Definition")
+		force_map("gh", history.wrap_jump("Lspsaga finder", "LSP Finder"), "LSP Finder")
+
 		force_map("K", "<cmd>Lspsaga hover_doc<CR>", "LSP Hover")
 
 		-- ВОЗВРАЩАЕМ ПРОПУЩЕННЫЕ ЛИДЕР-МАППИНГИ

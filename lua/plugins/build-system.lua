@@ -1,10 +1,10 @@
 _G.BuildSystem = _G.BuildSystem
 	or {
-		profile = "normal",
+		profile = "default",
 		target = "Default",
 		available_profiles = {},
 		available_targets = {},
-		overrides = {}, -- Хранилище сессионных правок команд
+		overrides = {},
 	}
 
 return {
@@ -12,6 +12,7 @@ return {
 	lazy = false,
 	opts = {
 		form = { border = "rounded" },
+		templates = { "builtin", "just" },
 		task_list = {
 			direction = "bottom",
 			min_height = 10,
@@ -45,12 +46,27 @@ return {
 	},
 	config = function(_, opts)
 		local overseer = require("overseer")
+		opts.disable_template_modules = { "overseer.template.just" }
 		overseer.setup(opts)
 
-		local state_file = vim.fn.stdpath("state") .. "/overseer_profiles.json"
-		local global_config_path = vim.fn.stdpath("config") .. "/lua/user/overseer_quick_run.lua"
+		local state_file = vim.fn.stdpath("state") .. "/build_system_just.json"
 
-		-- === СИСТЕМНЫЕ ФУНКЦИИ (Состояние) ===
+		-- === HELPERS ===
+
+		local function get_just_info()
+			local files = vim.fs.find({ "justfile", ".justfile" }, { upward = true, type = "file" })
+			if #files == 0 then
+				return nil, nil
+			end
+			local justfile = vim.fn.fnamemodify(files[1], ":p")
+			local obj = vim.system({ "just", "--dump", "--dump-format", "json", "-f", justfile }, { text = true })
+				:wait()
+			if obj.code ~= 0 then
+				return nil, justfile
+			end
+			local ok, decoded = pcall(vim.json.decode, obj.stdout)
+			return ok and decoded or nil, justfile
+		end
 
 		local function save_state()
 			local data = {}
@@ -60,12 +76,8 @@ return {
 					data = decoded
 				end
 			end
-			data[vim.fn.getcwd()] = {
-				profile = _G.BuildSystem.profile,
-				target = _G.BuildSystem.target,
-			}
+			data[vim.fn.getcwd()] = { profile = _G.BuildSystem.profile, target = _G.BuildSystem.target }
 			vim.fn.writefile({ vim.fn.json_encode(data) }, state_file)
-			-- Обновляем статус-бар
 			pcall(function()
 				require("lualine").refresh()
 			end)
@@ -76,84 +88,55 @@ return {
 				local ok, decoded = pcall(vim.fn.json_decode, vim.fn.readfile(state_file))
 				if ok and decoded[vim.fn.getcwd()] then
 					local saved = decoded[vim.fn.getcwd()]
-					if type(saved) == "string" then
-						_G.BuildSystem.profile = saved
-					elseif type(saved) == "table" then
-						_G.BuildSystem.profile = saved.profile or "normal"
-						_G.BuildSystem.target = saved.target or "Default"
-					end
+					_G.BuildSystem.profile = saved.profile or "default"
+					_G.BuildSystem.target = saved.target or "Default"
 				end
 			end
 		end
 
-		-- === ПАРСЕР TOML ===
-
-		local function get_toml_tasks()
-			local files = vim.fs.find({ "overseer.toml", ".overseer.toml" }, { upward = true, type = "file" })
-			if #files == 0 then
-				return {}, nil
+		local function evaluate_with_overrides(var_name, justfile, data)
+			local args = {}
+			if data.assignments.profile then
+				table.insert(args, "profile=" .. _G.BuildSystem.profile)
 			end
-
-			local filename = files[1]
-			local lines = vim.fn.readfile(filename)
-			local tasks_from_toml = {}
-			local current_task = nil
-			local new_profiles = {}
-			local new_targets = {}
-
-			for _, line in ipairs(lines) do
-				line = vim.trim(line)
-
-				if line:match("^profiles%s*=") then
-					local content = line:match("%[(.-)%]")
-					if content then
-						for p in content:gmatch("[^,%s]+") do
-							table.insert(new_profiles, (p:gsub("[\"']", "")))
-						end
-						_G.BuildSystem.available_profiles = new_profiles
-					end
-				elseif line:match("^targets%s*=") then
-					local content = line:match("%[(.-)%]")
-					if content then
-						for t in content:gmatch("[^,%s]+") do
-							table.insert(new_targets, (t:gsub("[\"']", "")))
-						end
-						_G.BuildSystem.available_targets = new_targets
-					end
-				elseif line:match("^%[") then
-					if not line:match("^%[template%]") then
-						local section_content = line:match("^%[boring_([%w_.]+)%]") or line:match("^%[([%w_.]+)%]")
-						if section_content then
-							current_task = {
-								raw_name = section_content,
-								tags = { section_content:upper() },
-								components = { "default" },
-								cmd = "",
-								depends_on = {},
-								watch = false,
-							}
-							table.insert(tasks_from_toml, current_task)
-						end
-					end
-				elseif current_task and line ~= "" and not line:match("^#") then
-					local key, value = line:match("^(%w+)%s*=%s*[\"']?(.-)[\"']?$")
-					if key == "cmd" then
-						current_task.cmd = value
-					elseif key == "depends" then
-						table.insert(current_task.depends_on, value)
-					elseif key == "watch" then
-						current_task.watch = (value == "true")
-					end
+			if data.assignments.target then
+				table.insert(args, "target=" .. _G.BuildSystem.target)
+			end
+			for k, v in pairs(_G.BuildSystem.overrides) do
+				if data.assignments[k] then
+					table.insert(args, string.format("%s=%s", k, v))
 				end
 			end
-			return tasks_from_toml, filename
+			local tmp = vim.fn.tempname() .. ".just"
+			vim.fn.writefile(
+				{ string.format("import '%s'", justfile), "_query:", "    @echo {{ " .. var_name .. " }}" },
+				tmp
+			)
+			local cmd = { "just", "-f", tmp }
+			vim.list_extend(cmd, args)
+			table.insert(cmd, "_query")
+			local obj = vim.system(cmd, { text = true }):wait()
+			vim.fn.delete(tmp)
+			return obj.code == 0 and vim.trim(obj.stdout) or nil
 		end
 
-		local function refresh_build_system_metadata()
-			local _, filename = get_toml_tasks()
-			if filename then
-				if _G.BuildSystem.target == "Default" and #_G.BuildSystem.available_targets > 0 then
-					_G.BuildSystem.target = _G.BuildSystem.available_targets[1]
+		local function refresh_metadata()
+			local data, _ = get_just_info()
+			if data and data.assignments then
+				if data.assignments.profiles then
+					_G.BuildSystem.available_profiles = vim.split(data.assignments.profiles.value, " ")
+					if
+						(_G.BuildSystem.profile == "default" or _G.BuildSystem.profile == "normal")
+						and #_G.BuildSystem.available_profiles > 0
+					then
+						_G.BuildSystem.profile = _G.BuildSystem.available_profiles[1]
+					end
+				end
+				if data.assignments.targets then
+					_G.BuildSystem.available_targets = vim.split(data.assignments.targets.value, " ")
+					if _G.BuildSystem.target == "Default" and #_G.BuildSystem.available_targets > 0 then
+						_G.BuildSystem.target = _G.BuildSystem.available_targets[1]
+					end
 				end
 			end
 			pcall(function()
@@ -161,164 +144,135 @@ return {
 			end)
 		end
 
-		-- === ГЕНЕРАТОР ШАБЛОНОВ ===
+		-- === TEMPLATE GENERATOR ===
 
 		overseer.register_template({
-			name = "toml_tasks_provider",
-			generator = function(search, cb)
-				refresh_build_system_metadata()
-				local raw_tasks, _ = get_toml_tasks()
-				local templates = {}
+			name = "just",
+			generator = function(opts, cb)
+				local data, justfile = get_just_info()
+				if not data then
+					return cb({})
+				end
+				local res = {}
 				local current_target = _G.BuildSystem.target
 
-				for _, t in ipairs(raw_tasks) do
-					local task_name = t.raw_name
-					local is_visible = false
-					local dot_pos = task_name:find("%.")
+				for raw_name, recipe in pairs(data.recipes) do
+					if not recipe.private then
+						local task_name = raw_name
+						local is_visible = false
+						local sep_pos = raw_name:find("_")
 
-					if dot_pos then
-						if task_name:sub(1, dot_pos - 1) == current_target then
-							task_name = task_name:sub(dot_pos + 1)
+						if sep_pos then
+							if raw_name:sub(1, sep_pos - 1) == current_target then
+								task_name = raw_name:sub(sep_pos + 1)
+								is_visible = true
+							end
+						else
 							is_visible = true
 						end
-					else
-						is_visible = true
-					end
 
-					if is_visible then
-						table.insert(templates, {
-							name = task_name,
-							tags = t.tags,
-							params = {
-								profile = {
-									type = "enum",
-									choices = #_G.BuildSystem.available_profiles > 0
-											and _G.BuildSystem.available_profiles
-										or { "normal" },
-									default = _G.BuildSystem.profile,
+						if is_visible then
+							table.insert(res, {
+								name = task_name,
+								params = {
+									profile = { type = "string", default = _G.BuildSystem.profile },
+									target = { type = "string", default = current_target },
 								},
-								target = { type = "string", default = current_target },
-							},
-							builder = function(params)
-								local override_cmd = _G.BuildSystem.overrides[t.raw_name]
-									and _G.BuildSystem.overrides[t.raw_name][params.profile]
-
-								local final_cmd = override_cmd or t.cmd
-								final_cmd = final_cmd:gsub("{profile}", params.profile)
-								final_cmd = final_cmd:gsub("{target}", params.target)
-
-								local is_run = (task_name == "run")
-								local task_components = vim.deepcopy(t.components)
-
-								if #t.depends_on > 0 then
-									local dep_tasks = {}
-									for _, dep_name in ipairs(t.depends_on) do
-										table.insert(dep_tasks, { dep_name, profile = params.profile })
+								builder = function(params)
+									local args = {}
+									if data.assignments.profile then
+										table.insert(args, "profile=" .. params.profile)
 									end
-									table.insert(task_components, { "dependencies", tasks = dep_tasks })
-								end
+									if data.assignments.target then
+										table.insert(args, "target=" .. params.target)
+									end
+									for k, v in pairs(_G.BuildSystem.overrides) do
+										if data.assignments[k] then
+											table.insert(args, string.format("%s=%s", k, v))
+										end
+									end
 
-								if t.watch then
-									table.insert(task_components, { "restart_on_save", paths = { vim.fn.getcwd() } })
-								end
+									local is_interactive = (task_name == "run")
+										or (type(recipe.doc) == "string" and recipe.doc:find("@interactive"))
 
-								local display_name
-								if #_G.BuildSystem.available_targets > 0 then
-									display_name = string.format("%s [%s:%s]", task_name, params.target, params.profile)
-								else
-									display_name = string.format("%s [%s]", task_name, params.profile)
-								end
+									local final_cmd_list = { "just" }
+									if is_interactive then
+										table.insert(final_cmd_list, "--no-deps")
+									end
+									table.insert(final_cmd_list, "-f")
+									table.insert(final_cmd_list, justfile)
+									vim.list_extend(final_cmd_list, args)
+									table.insert(final_cmd_list, raw_name)
 
-								return {
-									cmd = is_run and "echo 'Launching terminal...'" or final_cmd,
-									strategy = "jobstart",
-									components = task_components,
-									metadata = { real_cmd = final_cmd },
-									name = display_name,
-								}
-							end,
-						})
+									local final_cmd_str = table.concat(final_cmd_list, " ")
+
+									local task_components = { "default" }
+									if recipe.dependencies and #recipe.dependencies > 0 then
+										local deps = {}
+										for _, dep in ipairs(recipe.dependencies) do
+											local d_name = dep.recipe
+											local d_sep = d_name:find("_")
+											if d_sep and d_name:sub(1, d_sep - 1) == current_target then
+												d_name = d_name:sub(d_sep + 1)
+											end
+											table.insert(
+												deps,
+												{ d_name, profile = params.profile, target = params.target }
+											)
+										end
+										table.insert(task_components, { "dependencies", tasks = deps })
+									end
+
+									return {
+										cmd = is_interactive and "echo 'Launching terminal...'" or final_cmd_list,
+										strategy = "jobstart",
+										components = task_components,
+										metadata = { real_cmd = final_cmd_str },
+										name = string.format("%s [%s]", task_name, params.profile),
+									}
+								end,
+							})
+						end
 					end
 				end
-				cb(templates)
+				cb(res)
 			end,
 		})
 
-		-- === ИНТЕГРАЦИЯ С DAP (FIX) ===
-
-		_G.BuildSystem.get_current_run_config = function()
-			local tasks, _ = get_toml_tasks()
-			local target = _G.BuildSystem.target
-			local profile = _G.BuildSystem.profile
-
-			-- Ищем подходящую run задачу
-			local search_name = (#_G.BuildSystem.available_targets > 0 and target ~= "Default") and (target .. ".run")
-				or "run"
-
-			for _, t in ipairs(tasks) do
-				if t.raw_name == search_name then
-					-- Применяем плейсхолдеры
-					local cmd = t.cmd:gsub("{profile}", profile):gsub("{target}", target)
-					-- Разбиваем на бинарник и аргументы
-					local parts = vim.split(cmd, " ")
-					local program = table.remove(parts, 1)
-					-- Делаем путь к программе абсолютным для DAP
-					program = vim.fn.fnamemodify(program, ":p")
-
-					return {
-						program = program,
-						args = parts,
-					}
-				end
-			end
-			return nil
-		end
-
-		-- === АВТОКОМАНДЫ ===
-
-		local build_sys_group = vim.api.nvim_create_augroup("BuildSystemAutoUpdate", { clear = true })
-		vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
-			group = build_sys_group,
-			callback = function()
-				load_state()
-				refresh_build_system_metadata()
-			end,
-		})
-		vim.api.nvim_create_autocmd("BufWritePost", {
-			group = build_sys_group,
-			pattern = { "overseer.toml", ".overseer.toml" },
-			callback = function()
-				refresh_build_system_metadata()
-				overseer.clear_task_cache()
-				vim.notify("Overseer config reloaded", vim.log.levels.INFO)
-			end,
-		})
-
-		-- === ФУНКЦИИ ЗАПУСКА ===
+		-- === EXECUTION ===
 
 		local function run_task_by_name(name)
 			overseer.run_task({
 				name = name,
-				params = { profile = _G.BuildSystem.profile },
+				params = { profile = _G.BuildSystem.profile, target = _G.BuildSystem.target },
 			}, function(task)
 				if not task then
-					vim.notify(
-						"Task '" .. name .. "' not found for target: " .. _G.BuildSystem.target,
-						vim.log.levels.WARN
-					)
 					return
 				end
-				if name == "run" then
-					task:subscribe("on_start", function()
-						local cmd_to_run = task.metadata.real_cmd
-						if cmd_to_run then
-							require("toggleterm").exec(cmd_to_run)
-						end
+				task:subscribe("on_start", function()
+					local cmd = task.metadata.real_cmd
+					if cmd and task.cmd == "echo 'Launching terminal...'" then
+						require("toggleterm").exec(cmd)
 						task:set_status("SUCCESS")
-					end)
-				end
+					end
+				end)
 			end)
 		end
+
+		_G.BuildSystem.get_current_run_config = function()
+			local data, justfile = get_just_info()
+			if not data then
+				return nil
+			end
+			local bin = evaluate_with_overrides("dap_bin", justfile, data)
+			local args = evaluate_with_overrides("dap_args", justfile, data) or ""
+			if bin and bin ~= "" then
+				return { program = bin, args = vim.split(args, " ", { trimempty = true }) }
+			end
+			return nil
+		end
+
+		-- === KEYMAPS ===
 
 		vim.keymap.set("n", "<leader>br", function()
 			run_task_by_name("run")
@@ -332,238 +286,137 @@ return {
 		vim.keymap.set("n", "<leader>bc", function()
 			run_task_by_name("clean")
 		end, { desc = "🧹 Clean" })
-		vim.keymap.set("n", "<leader>bd", function()
-			run_task_by_name("deploy")
-		end, { desc = "🚀 Deploy" })
-
-		-- === QUICK RUN ===
-
-		local function get_quick_run_defaults()
-			local hardcoded = {
-				cpp = "g++ -O3 -Wall {file} -o {bin} && {bin}",
-				c = "gcc -O3 -Wall {file} -o {bin} && {bin}",
-				py = "python3 {file}",
-				sh = "bash {file}",
-				js = "node {file}",
-				go = "go run {file}",
-				lua = "lua {file}",
-				rs = "rustc {file} -o {bin} && {bin}",
-			}
-			if vim.fn.filereadable(global_config_path) == 1 then
-				local ok, user_defaults = pcall(dofile, global_config_path)
-				if ok and type(user_defaults) == "table" then
-					return vim.tbl_deep_extend("force", hardcoded, user_defaults)
-				end
-			end
-			return hardcoded
-		end
-
-		local function execute_quick_run(cmd, name)
-			if cmd == "" then
-				return
-			end
-			local task = overseer.new_task({
-				name = "Quick Run: " .. name,
-				cmd = "echo 'Launching terminal...'",
-				metadata = { real_cmd = cmd },
-				components = { "default" },
-			})
-			task:subscribe("on_start", function()
-				require("toggleterm").exec(cmd)
-				task:set_status("SUCCESS")
-			end)
-			task:start()
-			vim.notify("🚀 Running: " .. name, vim.log.levels.INFO)
-		end
 
 		vim.keymap.set("n", "<leader>bx", function()
 			local file = vim.api.nvim_buf_get_name(0)
 			local root = vim.fn.fnamemodify(file, ":t:r")
-			local ext = vim.fn.fnamemodify(file, ":e")
 			local bin = "/tmp/nvim_build_" .. root
-			local defaults = get_quick_run_defaults()
-			local raw_cmd = defaults[ext] or ""
-			local final_cmd = raw_cmd:gsub("{file}", "'" .. file .. "'"):gsub("{bin}", "'" .. bin .. "'")
-			execute_quick_run(final_cmd, root)
-		end, { desc = "🚀 Instant Run" })
-
-		vim.keymap.set("n", "<leader>bX", function()
-			local file = vim.api.nvim_buf_get_name(0)
-			local root = vim.fn.fnamemodify(file, ":t:r")
 			local ext = vim.fn.fnamemodify(file, ":e")
-			local bin = "/tmp/nvim_build_" .. root
-			local defaults = get_quick_run_defaults()
-			local raw_cmd = defaults[ext] or ""
-			local final_cmd = raw_cmd:gsub("{file}", "'" .. file .. "'"):gsub("{bin}", "'" .. bin .. "'")
-
-			vim.ui.input({ prompt = "Configure Quick Run: ", default = final_cmd }, function(input)
-				if not input or input == "" then
-					return
-				end
-				execute_quick_run(input, root)
-				if input ~= final_cmd then
-					vim.defer_fn(function()
-						vim.ui.input({ prompt = "Save as new project target?: " }, function(target_name)
-							if not target_name or target_name == "" then
-								return
-							end
-							local _, filename = get_toml_tasks()
-							if not filename then
-								filename = vim.fn.getcwd() .. "/overseer.toml"
-							end
-							local content = vim.fn.filereadable(filename) == 1 and vim.fn.readfile(filename) or {}
-							local t_idx = 0
-							for i, line in ipairs(content) do
-								if line:match("^targets%s*=") then
-									t_idx = i
-									break
-								end
-							end
-							if t_idx > 0 then
-								content[t_idx] =
-									content[t_idx]:gsub("(targets%s*=%s*%[.-)(%])", '%1, "' .. target_name .. '"%2')
-							else
-								table.insert(content, 1, 'targets = ["' .. target_name .. '"]')
-							end
-							table.insert(content, "")
-							table.insert(content, "[" .. target_name .. ".run]")
-							table.insert(content, 'cmd = "' .. input:gsub('"', '\\"') .. '"')
-							vim.fn.writefile(content, filename)
-							overseer.clear_task_cache()
-						end)
-					end, 500)
-				end
-			end)
-		end, { desc = "⚙️ Config Run" })
-
-		vim.keymap.set("n", "<leader>bP", function()
-			vim.schedule(function()
-				if #_G.BuildSystem.available_profiles == 0 then
-					return
-				end
-				vim.ui.select(_G.BuildSystem.available_profiles, { prompt = "Select Profile:" }, function(choice)
-					if choice then
-						_G.BuildSystem.profile = choice
-						save_state()
-						vim.notify("Profile set to: " .. choice)
-					end
-				end)
-			end)
-		end, { desc = "🔀 Profile" })
-
-		vim.keymap.set("n", "<leader>bT", function()
-			vim.schedule(function()
-				if #_G.BuildSystem.available_targets == 0 then
-					return
-				end
-				vim.ui.select(_G.BuildSystem.available_targets, { prompt = "Select Target:" }, function(choice)
-					if choice then
-						_G.BuildSystem.target = choice
-						save_state()
-						overseer.clear_task_cache()
-						vim.notify("Target switched to: " .. choice)
-					end
-				end)
-			end)
-		end, { desc = "🎯 Target" })
-
-		local function get_clean_name(raw_name)
-			local dot = raw_name:find("%.")
-			return dot and raw_name:sub(dot + 1) or raw_name
-		end
+			local map = { cpp = "g++ -O3", c = "gcc -O3", rs = "rustc", py = "python3", go = "go run" }
+			local cmd = string.format("%s '%s' -o '%s' && '%s'", map[ext] or "bash", file, bin, bin)
+			if ext == "py" or ext == "go" then
+				cmd = string.format("%s '%s'", map[ext], file)
+			end
+			overseer.new_task({ name = "Quick: " .. root, cmd = cmd, components = { "default" } }):start()
+		end)
 
 		vim.keymap.set("n", "<leader>be", function()
-			vim.schedule(function()
-				local tasks, _ = get_toml_tasks()
-				local visible = {}
-				for _, t in ipairs(tasks) do
-					local dot = t.raw_name:find("%.")
-					if not dot or t.raw_name:sub(1, dot - 1) == _G.BuildSystem.target then
-						table.insert(visible, t)
-					end
+			local data, _ = get_just_info()
+			if not data or not data.assignments.dap_args then
+				return
+			end
+			local prev = _G.BuildSystem.overrides["dap_args"] or data.assignments.dap_args.value
+			vim.ui.input({ prompt = "Edit dap_args (Session): ", default = prev }, function(input)
+				if input then
+					_G.BuildSystem.overrides["dap_args"] = input
 				end
-				if #visible == 0 then
-					return
-				end
-				vim.ui.select(visible, {
-					prompt = "Edit Task (Session):",
-					format_item = function(item)
-						return get_clean_name(item.raw_name)
-					end,
-				}, function(choice)
-					if not choice then
-						return
-					end
-					local cur_p = _G.BuildSystem.profile
-					local cur_v = (
-						_G.BuildSystem.overrides[choice.raw_name] and _G.BuildSystem.overrides[choice.raw_name][cur_p]
-					) or choice.cmd:gsub("{profile}", cur_p):gsub("{target}", _G.BuildSystem.target)
-					vim.ui.input({ prompt = "Cmd: ", default = cur_v }, function(input)
-						if input and input ~= "" then
-							_G.BuildSystem.overrides[choice.raw_name] = _G.BuildSystem.overrides[choice.raw_name] or {}
-							_G.BuildSystem.overrides[choice.raw_name][cur_p] = input
-						end
-					end)
-				end)
 			end)
-		end, { desc = "✏️ Edit (Session)" })
+		end)
 
 		vim.keymap.set("n", "<leader>bE", function()
-			vim.schedule(function()
-				local tasks, filename = get_toml_tasks()
-				if not filename then
-					return
-				end
-				local visible = {}
-				for _, t in ipairs(tasks) do
-					local dot = t.raw_name:find("%.")
-					if not dot or t.raw_name:sub(1, dot - 1) == _G.BuildSystem.target then
-						table.insert(visible, t)
+			local data, justfile = get_just_info()
+			if not data then
+				return
+			end
+			local current_target = _G.BuildSystem.target
+			local choices = {}
+
+			-- Собираем только подходящие рецепты
+			for n, r in pairs(data.recipes) do
+				if not r.private then
+					local s = n:find("_")
+					-- Добавляем если: глобальный (нет _) или совпадает таргет
+					if not s or n:sub(1, s - 1) == current_target then
+						table.insert(choices, n)
 					end
 				end
-				if #visible == 0 then
+			end
+
+			-- Сортируем для порядка
+			table.sort(choices)
+
+			vim.ui.select(choices, {
+				prompt = "Jump to Recipe:",
+				-- Показываем красивые короткие имена в меню
+				format_item = function(item)
+					local s = item:find("_")
+					return s and item:sub(s + 1) or item
+				end,
+			}, function(full_name)
+				if not full_name then
 					return
 				end
-				vim.ui.select(visible, {
-					prompt = "Edit Task (DISK):",
-					format_item = function(item)
-						return get_clean_name(item.raw_name)
-					end,
-				}, function(choice)
-					if not choice then
-						return
-					end
-					vim.ui.input({ prompt = "Edit Template Cmd: ", default = choice.cmd }, function(input)
-						if not input or input == "" or input == choice.cmd then
-							return
-						end
-						local content = vim.fn.readfile(filename)
-						local start_idx = 0
-						local h1, h2 = "[" .. choice.raw_name .. "]", "[boring_" .. choice.raw_name .. "]"
-						for i, line in ipairs(content) do
-							if vim.trim(line) == h1 or vim.trim(line) == h2 then
-								start_idx = i
+				-- Дальше логика остается прежней...
+				local o = vim.system({ "just", "-f", justfile, "--show", full_name }, { text = true }):wait()
+				if o.code ~= 0 then
+					return
+				end
+				local show_lines = vim.split(o.stdout, "\n", { trimempty = true })
+				vim.cmd("edit " .. justfile)
+				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+				for i, line in ipairs(lines) do
+					if line:match("^" .. full_name .. "[:%s]") or line == full_name then
+						local start_line = i
+						for j, sl in ipairs(show_lines) do
+							if sl:match("^" .. full_name .. "[:%s]") or sl == full_name then
+								start_line = i - (j - 1)
 								break
 							end
 						end
-						if start_idx > 0 then
-							for i = start_idx + 1, #content do
-								if content[i]:match("^%[") then
-									break
-								end
-								if content[i]:match("^cmd%s*=") then
-									content[i] = string.format('cmd = "%s"', (input:gsub('"', '\\"')))
-									vim.fn.writefile(content, filename)
-									if _G.BuildSystem.overrides[choice.raw_name] then
-										_G.BuildSystem.overrides[choice.raw_name] = nil
-									end
-									break
-								end
-							end
+						vim.api.nvim_win_set_cursor(0, { math.max(1, start_line), 0 })
+						vim.cmd("normal! zzV")
+						if #show_lines > 1 then
+							vim.cmd("normal! " .. (#show_lines - 1) .. "j")
 						end
-					end)
-				end)
+						break
+					end
+				end
 			end)
-		end, { desc = "💾 Edit (Disk)" })
+		end, { desc = "💾 Edit Justfile" })
+
+		vim.keymap.set("n", "<leader>bP", function()
+			refresh_metadata()
+			if #_G.BuildSystem.available_profiles == 0 then
+				return
+			end
+			vim.ui.select(_G.BuildSystem.available_profiles, { prompt = "Profile:" }, function(c)
+				if c then
+					_G.BuildSystem.profile = c
+					save_state()
+					overseer.clear_task_cache()
+				end
+			end)
+		end)
+
+		vim.keymap.set("n", "<leader>bT", function()
+			refresh_metadata()
+			if #_G.BuildSystem.available_targets == 0 then
+				return
+			end
+			vim.ui.select(_G.BuildSystem.available_targets, { prompt = "Target:" }, function(c)
+				if c then
+					_G.BuildSystem.target = c
+					save_state()
+					overseer.clear_task_cache()
+				end
+			end)
+		end)
+
+		local group = vim.api.nvim_create_augroup("BuildSystemJust", { clear = true })
+		vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
+			group = group,
+			callback = function()
+				load_state()
+				refresh_metadata()
+			end,
+		})
+		vim.api.nvim_create_autocmd("BufWritePost", {
+			group = group,
+			pattern = { "justfile", ".justfile" },
+			callback = function()
+				refresh_metadata()
+				overseer.clear_task_cache()
+			end,
+		})
 	end,
 }
