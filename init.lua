@@ -64,5 +64,6 @@ require("lazy").setup("plugins", {
 })
 require("user.project-setup").setup()
 require("user.lspconfig")
+require("user.history")
 local clip = require("user.clipboard")
 vim.keymap.set("n", "<leader>yy", clip.copy_as_tag, { desc = "Copy buffer with <file> tags" })

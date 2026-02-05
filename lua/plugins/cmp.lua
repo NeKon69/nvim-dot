@@ -15,14 +15,20 @@ return {
 		local lspkind = require("lspkind")
 		local luasnip = require("luasnip")
 
-		vim.api.nvim_set_hl(0, "CmpBorder", { fg = "#fF00FF" })
+		-- Твой неоновый розовый
+		local neon_pink = "#fa6fff"
+
+		vim.api.nvim_set_hl(0, "CmpBorder", { fg = neon_pink, bg = "NONE" })
+		vim.api.nvim_set_hl(0, "HoverBorder", { fg = neon_pink, bg = "NONE" })
 
 		local window_opts = {
 			completion = cmp.config.window.bordered({
-				winhighlight = "FloatBorder:CmpBorder",
+				border = "rounded",
+				winhighlight = "Normal:NormalFloat,FloatBorder:CmpBorder,CursorLine:PmenuSel,Search:None",
 			}),
 			documentation = cmp.config.window.bordered({
-				winhighlight = "FloatBorder:CmpBorder",
+				border = "rounded",
+				winhighlight = "Normal:NormalFloat,FloatBorder:CmpBorder,Search:None",
 			}),
 		}
 
@@ -52,7 +58,6 @@ return {
 			mapping = {
 				["<CR>"] = cmp.mapping.confirm({ select = false }),
 				["<C-Space>"] = cmp.mapping.complete(),
-
 				["<M-s>"] = cmp.mapping(function(fallback)
 					if cmp.visible() then
 						cmp.select_next_item()
@@ -81,9 +86,7 @@ return {
 		cmp.setup.cmdline("/", {
 			mapping = cmp.mapping.preset.cmdline(),
 			sources = { { name = "buffer" } },
-			window = {
-				completion = window_opts.completion,
-			},
+			window = { completion = window_opts.completion },
 		})
 
 		cmp.setup.cmdline(":", {
@@ -96,15 +99,35 @@ return {
 					end
 				end, { "c" }),
 			}),
-			sources = cmp.config.sources({
-				{ name = "path" },
-			}, {
-				{ name = "cmdline" },
-			}),
-			matching = { disallow_symbol_nonprefix_matching = false },
-			window = {
-				completion = window_opts.completion,
-			},
+			sources = cmp.config.sources({ { name = "path" } }, { { name = "cmdline" } }),
+			window = { completion = window_opts.completion },
+		})
+		vim.api.nvim_create_autocmd("BufWinEnter", {
+			group = vim.api.nvim_create_augroup("SagaCustomFix", { clear = true }),
+			callback = function(opt)
+				if vim.bo[opt.buf].filetype == "markdown" and vim.bo[opt.buf].buftype == "nofile" then
+					-- Функция-фиксер
+					local function apply_fix()
+						local winid = vim.fn.bufwinid(opt.buf)
+						if winid and winid > 0 and vim.api.nvim_win_is_valid(winid) then
+							vim.wo[winid].wrap = false
+							vim.wo[winid].signcolumn = "no"
+							vim.wo[winid].number = false
+							vim.wo[winid].relativenumber = false
+							vim.wo[winid].foldcolumn = "0"
+						end
+					end
+
+					-- Запускаем сразу
+					apply_fix()
+
+					-- Запускаем через 10мс (когда Сага обычно заканчивает)
+					vim.defer_fn(apply_fix, 10)
+
+					-- И на всякий случай через 100мс (если лагает LSP/рендерер)
+					vim.defer_fn(apply_fix, 100)
+				end
+			end,
 		})
 	end,
 }

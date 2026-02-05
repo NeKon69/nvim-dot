@@ -1,37 +1,37 @@
 return {
-{
-"chrisgrieser/nvim-spider",
-event = "VeryLazy",
-opts = {
-skipInsignificantPunctuation = true,
-subwordMovement = true,
-consistentOperatorPending = false,
-},
-keys = {
-{
-"w",
-"<cmd>lua require('spider').motion('w')<CR>",
-mode = { "n", "o", "x" },
-desc = "Spider w",
-},
-{
-"e",
-"<cmd>lua require('spider').motion('e')<CR>",
-mode = { "n", "o", "x" },
-desc = "Spider e",
-},
-{
-"b",
-"<cmd>lua require('spider').motion('b')<CR>",
-mode = { "n", "o", "x" },
-desc = "Spider b",
-},
-{
-"ge",
-"<cmd>lua require('spider').motion('ge')<CR>",
-mode = { "n", "o", "x" },
-desc = "Spider ge",
-},
-},
-},
+	{
+		"chrisgrieser/nvim-spider",
+		event = "VeryLazy",
+		opts = {
+			skipInsignificantPunctuation = true,
+			subwordMovement = true,
+			consistentOperatorPending = false,
+		},
+		keys = {
+			{
+				"w",
+				"<cmd>lua require('spider').motion('w')<CR>",
+				mode = { "n", "o", "x" },
+				desc = "Spider w",
+			},
+			{
+				"e",
+				"<cmd>lua require('spider').motion('e')<CR>",
+				mode = { "n", "o", "x" },
+				desc = "Spider e",
+			},
+			{
+				"b",
+				"<cmd>lua require('spider').motion('b')<CR>",
+				mode = { "n", "o", "x" },
+				desc = "Spider b",
+			},
+			{
+				"ge",
+				"<cmd>lua require('spider').motion('ge')<CR>",
+				mode = { "n", "o", "x" },
+				desc = "Spider ge",
+			},
+		},
+	},
 }

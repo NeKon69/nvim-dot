@@ -12,8 +12,7 @@ return {
 	lazy = false,
 	opts = {
 		form = { border = "rounded" },
-		-- Отключаем встроенный провайдер just, чтобы не было дубликатов
-		disable_template_modules = { "just" },
+		templates = { "builtin", "just" },
 		task_list = {
 			direction = "bottom",
 			min_height = 10,
@@ -47,11 +46,12 @@ return {
 	},
 	config = function(_, opts)
 		local overseer = require("overseer")
+		opts.disable_template_modules = { "overseer.template.just" }
 		overseer.setup(opts)
 
 		local state_file = vim.fn.stdpath("state") .. "/build_system_just.json"
 
-		-- === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+		-- === HELPERS ===
 
 		local function get_just_info()
 			local files = vim.fs.find({ "justfile", ".justfile" }, { upward = true, type = "file" })
@@ -144,10 +144,10 @@ return {
 			end)
 		end
 
-		-- === ГЕНЕРАТОР ШАБЛОНОВ (JUST) ===
+		-- === TEMPLATE GENERATOR ===
 
 		overseer.register_template({
-			name = "just", -- Перекрываем встроенный провайдер
+			name = "just",
 			generator = function(opts, cb)
 				local data, justfile = get_just_info()
 				if not data then
@@ -162,14 +162,13 @@ return {
 						local is_visible = false
 						local sep_pos = raw_name:find("_")
 
-						-- Логика фильтрации по таргету (используем '_')
 						if sep_pos then
 							if raw_name:sub(1, sep_pos - 1) == current_target then
-								task_name = raw_name:sub(sep_pos + 1) -- Обрезаем префикс (App_run -> run)
+								task_name = raw_name:sub(sep_pos + 1)
 								is_visible = true
 							end
 						else
-							is_visible = true -- Глобальная задача (clean, format, lint)
+							is_visible = true
 						end
 
 						if is_visible then
@@ -193,7 +192,6 @@ return {
 										end
 									end
 
-									-- Исправление бага с userdata (null)
 									local is_interactive = (task_name == "run")
 										or (type(recipe.doc) == "string" and recipe.doc:find("@interactive"))
 
@@ -208,33 +206,29 @@ return {
 
 									local final_cmd_str = table.concat(final_cmd_list, " ")
 
-									-- Сборка зависимостей (обрезаем префиксы)
 									local task_components = { "default" }
 									if recipe.dependencies and #recipe.dependencies > 0 then
 										local deps = {}
 										for _, dep in ipairs(recipe.dependencies) do
-											local dep_name = dep.recipe
-											local dep_sep = dep_name:find("_")
-											local clean_dep = dep_sep and dep_name:sub(dep_sep + 1) or dep_name
-
+											local d_name = dep.recipe
+											local d_sep = d_name:find("_")
+											if d_sep and d_name:sub(1, d_sep - 1) == current_target then
+												d_name = d_name:sub(d_sep + 1)
+											end
 											table.insert(
 												deps,
-												{ clean_dep, profile = params.profile, target = params.target }
+												{ d_name, profile = params.profile, target = params.target }
 											)
 										end
 										table.insert(task_components, { "dependencies", tasks = deps })
 									end
-
-									local display_name = #_G.BuildSystem.available_targets > 0
-											and string.format("%s [%s:%s]", task_name, params.target, params.profile)
-										or string.format("%s [%s]", task_name, params.profile)
 
 									return {
 										cmd = is_interactive and "echo 'Launching terminal...'" or final_cmd_list,
 										strategy = "jobstart",
 										components = task_components,
 										metadata = { real_cmd = final_cmd_str },
-										name = display_name,
+										name = string.format("%s [%s]", task_name, params.profile),
 									}
 								end,
 							})
@@ -245,16 +239,14 @@ return {
 			end,
 		})
 
-		-- === ФУНКЦИИ ЗАПУСКА (ИНТЕРАКТИВНОСТЬ) ===
+		-- === EXECUTION ===
 
 		local function run_task_by_name(name)
-			local target = _G.BuildSystem.target
 			overseer.run_task({
 				name = name,
-				params = { profile = _G.BuildSystem.profile, target = target },
+				params = { profile = _G.BuildSystem.profile, target = _G.BuildSystem.target },
 			}, function(task)
 				if not task then
-					vim.notify("Task '" .. name .. "' not found for target: " .. target, vim.log.levels.WARN)
 					return
 				end
 				task:subscribe("on_start", function()
@@ -280,7 +272,7 @@ return {
 			return nil
 		end
 
-		-- === КЛАВИШИ И AUTOCMDS ===
+		-- === KEYMAPS ===
 
 		vim.keymap.set("n", "<leader>br", function()
 			run_task_by_name("run")
@@ -311,7 +303,6 @@ return {
 		vim.keymap.set("n", "<leader>be", function()
 			local data, _ = get_just_info()
 			if not data or not data.assignments.dap_args then
-				vim.notify("Variable 'dap_args' not found", vim.log.levels.WARN)
 				return
 			end
 			local prev = _G.BuildSystem.overrides["dap_args"] or data.assignments.dap_args.value
@@ -327,27 +318,70 @@ return {
 			if not data then
 				return
 			end
-			local recipes = {}
+			local current_target = _G.BuildSystem.target
+			local choices = {}
+
+			-- Собираем только подходящие рецепты
 			for n, r in pairs(data.recipes) do
 				if not r.private then
-					table.insert(recipes, n)
+					local s = n:find("_")
+					-- Добавляем если: глобальный (нет _) или совпадает таргет
+					if not s or n:sub(1, s - 1) == current_target then
+						table.insert(choices, n)
+					end
 				end
 			end
-			vim.ui.select(recipes, { prompt = "Jump to Recipe:" }, function(n)
-				if n then
-					vim.cmd("edit +" .. (data.recipes[n].line_number or 1) .. " " .. justfile)
+
+			-- Сортируем для порядка
+			table.sort(choices)
+
+			vim.ui.select(choices, {
+				prompt = "Jump to Recipe:",
+				-- Показываем красивые короткие имена в меню
+				format_item = function(item)
+					local s = item:find("_")
+					return s and item:sub(s + 1) or item
+				end,
+			}, function(full_name)
+				if not full_name then
+					return
+				end
+				-- Дальше логика остается прежней...
+				local o = vim.system({ "just", "-f", justfile, "--show", full_name }, { text = true }):wait()
+				if o.code ~= 0 then
+					return
+				end
+				local show_lines = vim.split(o.stdout, "\n", { trimempty = true })
+				vim.cmd("edit " .. justfile)
+				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+				for i, line in ipairs(lines) do
+					if line:match("^" .. full_name .. "[:%s]") or line == full_name then
+						local start_line = i
+						for j, sl in ipairs(show_lines) do
+							if sl:match("^" .. full_name .. "[:%s]") or sl == full_name then
+								start_line = i - (j - 1)
+								break
+							end
+						end
+						vim.api.nvim_win_set_cursor(0, { math.max(1, start_line), 0 })
+						vim.cmd("normal! zzV")
+						if #show_lines > 1 then
+							vim.cmd("normal! " .. (#show_lines - 1) .. "j")
+						end
+						break
+					end
 				end
 			end)
-		end)
+		end, { desc = "💾 Edit Justfile" })
 
 		vim.keymap.set("n", "<leader>bP", function()
 			refresh_metadata()
 			if #_G.BuildSystem.available_profiles == 0 then
 				return
 			end
-			vim.ui.select(_G.BuildSystem.available_profiles, { prompt = "Select Profile:" }, function(choice)
-				if choice then
-					_G.BuildSystem.profile = choice
+			vim.ui.select(_G.BuildSystem.available_profiles, { prompt = "Profile:" }, function(c)
+				if c then
+					_G.BuildSystem.profile = c
 					save_state()
 					overseer.clear_task_cache()
 				end
@@ -359,9 +393,9 @@ return {
 			if #_G.BuildSystem.available_targets == 0 then
 				return
 			end
-			vim.ui.select(_G.BuildSystem.available_targets, { prompt = "Select Target:" }, function(choice)
-				if choice then
-					_G.BuildSystem.target = choice
+			vim.ui.select(_G.BuildSystem.available_targets, { prompt = "Target:" }, function(c)
+				if c then
+					_G.BuildSystem.target = c
 					save_state()
 					overseer.clear_task_cache()
 				end
@@ -382,7 +416,6 @@ return {
 			callback = function()
 				refresh_metadata()
 				overseer.clear_task_cache()
-				vim.notify("Justfile reloaded", vim.log.levels.INFO)
 			end,
 		})
 	end,

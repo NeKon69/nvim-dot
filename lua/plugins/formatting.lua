@@ -40,16 +40,16 @@ return {
 				python = { "ruff" },
 				json = { "jsonlint" },
 				markdown = { "markdownlint" },
-				cuda = { "clangtidy" },
-				cu = { "clangtidy" },
-				cpp = { "clangtidy" },
-				c = { "clangtidy" },
 			}
 
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
 			vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
 				group = lint_augroup,
+
 				callback = function()
+					if vim.bo.buftype == "nofile" or vim.bo.filetype == "lspsagafinder" then
+						return
+					end
 					lint.try_lint()
 				end,
 			})
