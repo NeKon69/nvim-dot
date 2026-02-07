@@ -7,6 +7,43 @@ _G.BuildSystem = _G.BuildSystem
 		overrides = {},
 	}
 
+-- Функция для парсинга аргументов с учетом кавычек
+local function parse_args(args_str)
+	local args = {}
+	local current = ""
+	local in_quote = nil
+	local escaped = false
+
+	for i = 1, #args_str do
+		local char = args_str:sub(i, i)
+		if escaped then
+			current = current .. char
+			escaped = false
+		elseif char == "\\" and not in_quote then
+			escaped = true
+		elseif (char == '"' or char == "'") and not escaped then
+			if in_quote == char then
+				in_quote = nil
+			elseif not in_quote then
+				in_quote = char
+			else
+				current = current .. char
+			end
+		elseif char:match("%s") and not in_quote then
+			if #current > 0 then
+				table.insert(args, current)
+				current = ""
+			end
+		else
+			current = current .. char
+		end
+	end
+	if #current > 0 then
+		table.insert(args, current)
+	end
+	return args
+end
+
 return {
 	"stevearc/overseer.nvim",
 	lazy = false,
@@ -104,7 +141,7 @@ return {
 			end
 			for k, v in pairs(_G.BuildSystem.overrides) do
 				if data.assignments[k] then
-					table.insert(args, string.format("%s=%s", k, v))
+					table.insert(args, string.format("%s='%s'", k, v))
 				end
 			end
 			local tmp = vim.fn.tempname() .. ".just"
@@ -267,9 +304,50 @@ return {
 			local bin = evaluate_with_overrides("dap_bin", justfile, data)
 			local args = evaluate_with_overrides("dap_args", justfile, data) or ""
 			if bin and bin ~= "" then
-				return { program = bin, args = vim.split(args, " ", { trimempty = true }) }
+				return { program = bin, args = parse_args(args) }
 			end
 			return nil
+		end
+
+		-- === QUICK RUN (Interactive + CWD fix) ===
+
+		local function quick_run_interactive()
+			local file = vim.api.nvim_buf_get_name(0)
+			-- Получаем директорию файла
+			local dir = vim.fn.fnamemodify(file, ":p:h")
+
+			local root = vim.fn.fnamemodify(file, ":t:r")
+			local bin = "/tmp/nvim_build_" .. root
+			local ext = vim.fn.fnamemodify(file, ":e")
+			local map = { cpp = "g++ -O3", c = "gcc -O3", rs = "rustc", py = "python3", go = "go run" }
+
+			local cmd_str = ""
+
+			if ext == "py" or ext == "go" then
+				cmd_str = string.format("%s '%s'", map[ext], file)
+			else
+				local compiler = map[ext]
+				if not compiler then
+					cmd_str = string.format("bash '%s'", file)
+				else
+					cmd_str = string.format("%s '%s' -o '%s' && '%s'", compiler, file, bin, bin)
+				end
+			end
+
+			local task = overseer.new_task({
+				name = "Quick: " .. root,
+				cmd = "echo 'Launching terminal...'",
+				metadata = { real_cmd = cmd_str },
+				components = { "default" },
+			})
+
+			task:subscribe("on_start", function(t)
+				-- 4-й аргумент в exec - это директория (cwd)
+				require("toggleterm").exec(t.metadata.real_cmd, nil, nil, dir)
+				t:set_status("SUCCESS")
+			end)
+
+			task:start()
 		end
 
 		-- === KEYMAPS ===
@@ -287,18 +365,8 @@ return {
 			run_task_by_name("clean")
 		end, { desc = "🧹 Clean" })
 
-		vim.keymap.set("n", "<leader>bx", function()
-			local file = vim.api.nvim_buf_get_name(0)
-			local root = vim.fn.fnamemodify(file, ":t:r")
-			local bin = "/tmp/nvim_build_" .. root
-			local ext = vim.fn.fnamemodify(file, ":e")
-			local map = { cpp = "g++ -O3", c = "gcc -O3", rs = "rustc", py = "python3", go = "go run" }
-			local cmd = string.format("%s '%s' -o '%s' && '%s'", map[ext] or "bash", file, bin, bin)
-			if ext == "py" or ext == "go" then
-				cmd = string.format("%s '%s'", map[ext], file)
-			end
-			overseer.new_task({ name = "Quick: " .. root, cmd = cmd, components = { "default" } }):start()
-		end)
+		vim.keymap.set("n", "<leader>bx", quick_run_interactive, { desc = "🚀 Quick Run (Term)" })
+		vim.keymap.set("n", "<leader>bX", quick_run_interactive, { desc = "🚀 Quick Run (Term)" })
 
 		vim.keymap.set("n", "<leader>be", function()
 			local data, _ = get_just_info()
@@ -320,24 +388,17 @@ return {
 			end
 			local current_target = _G.BuildSystem.target
 			local choices = {}
-
-			-- Собираем только подходящие рецепты
 			for n, r in pairs(data.recipes) do
 				if not r.private then
 					local s = n:find("_")
-					-- Добавляем если: глобальный (нет _) или совпадает таргет
 					if not s or n:sub(1, s - 1) == current_target then
 						table.insert(choices, n)
 					end
 				end
 			end
-
-			-- Сортируем для порядка
 			table.sort(choices)
-
 			vim.ui.select(choices, {
 				prompt = "Jump to Recipe:",
-				-- Показываем красивые короткие имена в меню
 				format_item = function(item)
 					local s = item:find("_")
 					return s and item:sub(s + 1) or item
@@ -346,7 +407,6 @@ return {
 				if not full_name then
 					return
 				end
-				-- Дальше логика остается прежней...
 				local o = vim.system({ "just", "-f", justfile, "--show", full_name }, { text = true }):wait()
 				if o.code ~= 0 then
 					return

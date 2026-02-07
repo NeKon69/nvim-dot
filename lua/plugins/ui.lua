@@ -93,7 +93,7 @@ return {
 		"nvim-lualine/lualine.nvim",
 		config = function()
 			local symbols = {
-				spinner = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+				spinner = { "⠋", "⠙", "⠹", "⠼", "⠴", "⠦", "⠧", "⠏" },
 				ok = "",
 				err = "",
 				warn = "",
@@ -110,6 +110,9 @@ return {
 				p_release = "#98be65",
 				p_default = "#c678dd",
 			}
+
+			-- Fix Б: Палитра для радуги
+			local rainbow_colors = { "#ff5d78", "#ff9b5e", "#ffc75f", "#f9f871", "#00d2fc", "#00d7bd" }
 
 			local function get_main_task()
 				local ok, overseer = pcall(require, "overseer")
@@ -167,8 +170,10 @@ return {
 
 				if task then
 					if task.status == "RUNNING" then
-						local spinner =
-							symbols.spinner[math.floor(vim.loop.hrtime() / 120000000) % #symbols.spinner + 1]
+						-- Fix: Используем vim.loop.hrtime() для плавной анимации без зависаний
+						local time = vim.loop.hrtime() / 1e9
+						local frame = math.floor(time * 10) % #symbols.spinner + 1
+						local spinner = symbols.spinner[frame]
 						return string.format("%s Running %s", spinner, task.name)
 					elseif task.status == "PENDING" then
 						return string.format("%s Pending %s...", symbols.warn, task.name)
@@ -210,7 +215,10 @@ return {
 					)
 					if not (is_finished and (t_time == 0 or os.difftime(now, t_time) > 5)) then
 						if task.status == "RUNNING" then
-							return { fg = colors.running, gui = "bold" }
+							-- Fix: Радужный цвет, меняющийся во времени
+							local time = vim.loop.hrtime() / 1e9
+							local idx = math.floor(time * 2) % #rainbow_colors + 1
+							return { fg = rainbow_colors[idx], gui = "bold" }
 						end
 						if task.status == "PENDING" then
 							return { fg = colors.pending, gui = "bold" }
@@ -236,12 +244,14 @@ return {
 				end
 				return { fg = colors.p_default }
 			end
+
 			local function lualine_dap_component()
 				if _G.dap_layer_active then
 					return " DEBUG"
 				end
 				return ""
 			end
+
 			local noice_components = {
 				mode = {
 					require("noice").api.status.mode.get,
@@ -254,9 +264,10 @@ return {
 					color = { fg = "#ff9e64" },
 				},
 			}
+
 			require("lualine").setup({
 				options = {
-					refresh = { statusline = 100 },
+					refresh = { statusline = 100 }, -- Критично для анимации (10fps)
 					theme = "tokyonight",
 					component_separators = { left = "", right = "" },
 					section_separators = { left = "", right = "" },
@@ -298,6 +309,7 @@ return {
 			})
 		end,
 	},
+
 	{
 		"folke/which-key.nvim",
 		event = "VeryLazy",
