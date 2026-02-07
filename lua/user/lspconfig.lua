@@ -1,3 +1,9 @@
+local lsp_log_path = vim.lsp.log.get_filename()
+local f = io.open(lsp_log_path, "w")
+if f then
+	f:write(string.format("[INFO][%s] Log cleared on startup\n", os.date("%Y-%m-%d %H:%M:%S")))
+	f:close()
+end
 local M = {}
 
 M.capabilities = require("cmp_nvim_lsp").default_capabilities()
@@ -84,30 +90,48 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		end
 
 		local hover_timer = nil
+		local is_hover_requesting = false -- Флаг защиты
+
 		vim.api.nvim_create_autocmd("CursorHold", {
 			buffer = bufnr,
 			callback = function()
-				if vim.fn.mode() == "n" and vim.fn.pumvisible() == 0 then
-					if hover_timer then
-						vim.fn.timer_stop(hover_timer)
-					end
-					hover_timer = vim.fn.timer_start(500, function()
-						if vim.api.nvim_buf_is_valid(bufnr) then
-							local hover = require("lspsaga.hover")
-							if not (hover.winid and vim.api.nvim_win_is_valid(hover.winid)) then
-								vim.cmd("Lspsaga hover_doc ++silent")
-							end
-						end
-					end)
+				-- Если мы уже попросили ховер или открыто меню автодополнения - выходим
+				if vim.fn.mode() ~= "n" or vim.fn.pumvisible() ~= 0 or is_hover_requesting then
+					return
 				end
+
+				if hover_timer then
+					vim.fn.timer_stop(hover_timer)
+				end
+
+				hover_timer = vim.fn.timer_start(500, function()
+					if vim.api.nvim_buf_is_valid(bufnr) then
+						local hover = require("lspsaga.hover")
+						local win_valid = hover.winid and vim.api.nvim_win_is_valid(hover.winid)
+
+						if not win_valid and not is_hover_requesting then
+							is_hover_requesting = true
+							vim.cmd("Lspsaga hover_doc ++silent")
+
+							-- Сбрасываем флаг через небольшую паузу, когда Сага точно отрисуется
+							vim.defer_fn(function()
+								is_hover_requesting = false
+							end, 1000)
+						end
+					end
+				end)
 			end,
 		})
-		vim.api.nvim_create_autocmd("CursorMoved", {
+
+		vim.api.nvim_create_autocmd({ "CursorMoved", "InsertEnter" }, {
 			buffer = bufnr,
 			callback = function()
 				if hover_timer then
 					vim.fn.timer_stop(hover_timer)
+					hover_timer = nil
 				end
+				-- При движении курсора разрешаем новые запросы
+				is_hover_requesting = false
 			end,
 		})
 	end,

@@ -39,3 +39,5 @@ vim.g.loaded_netrwPlugin = 1
 vim.opt.shortmess:append("IFc")
 
 vim.api.nvim_create_augroup("FileExplorer", { clear = true })
+
+vim.opt.autochdir = false

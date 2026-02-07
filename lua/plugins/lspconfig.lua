@@ -7,6 +7,14 @@ return {
 		},
 		config = function()
 			require("user.lspconfig")
+
+			vim.api.nvim_create_user_command("LspInfo", "checkhealth vim.lsp", {})
+
+			vim.api.nvim_create_user_command("LspLog", function()
+				local log_path = vim.lsp.log.get_filename()
+				vim.cmd("tabnew " .. log_path)
+			end, {})
+
 			vim.lsp.config("clangd", {
 				cmd = {
 					"clangd",
@@ -27,6 +35,13 @@ return {
 				},
 			})
 
+			-- Neocmake (наш новый Rust-сервер вместо битого питоновского)
+			vim.lsp.config("neocmake", {
+				cmd = { "neocmakelsp", "stdio" },
+				filetypes = { "cmake" },
+				root_markers = { "CMakeLists.txt", ".git" },
+			})
+
 			vim.lsp.config("lua_ls", {
 				cmd = { "lua-language-server" },
 				filetypes = { "lua" },
@@ -35,9 +50,6 @@ return {
 					".luarc.jsonc",
 					".luacheckrc",
 					".stylua.toml",
-					"stylua.toml",
-					"selene.toml",
-					"selene.yml",
 					".git",
 				},
 				settings = {
@@ -56,21 +68,13 @@ return {
 			vim.lsp.config("pyright", {
 				cmd = { "pyright-langserver", "--stdio" },
 				filetypes = { "python" },
-				root_markers = {
-					"pyproject.toml",
-					"setup.py",
-					"setup.cfg",
-					"requirements.txt",
-					"Pipfile",
-					".git",
-				},
+				root_markers = { "pyproject.toml", "setup.py", ".git" },
 				settings = {
 					python = {
 						analysis = {
 							autoSearchPaths = true,
 							useLibraryCodeForTypes = true,
 							diagnosticMode = "workspace",
-							typeCheckingMode = "basic",
 						},
 					},
 				},
@@ -80,7 +84,7 @@ return {
 				"clangd",
 				"lua_ls",
 				"pyright",
-				"cmake",
+				"neocmake",
 				"glsl_analyzer",
 			})
 		end,

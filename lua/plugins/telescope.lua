@@ -1,6 +1,5 @@
 return {
 	"nvim-telescope/telescope.nvim",
-	tag = "0.1.5",
 	dependencies = {
 		"nvim-lua/plenary.nvim",
 		-- Адаптер для Telescope, чтобы перехватывать vim.ui.select (ФИКС UI БАГА)

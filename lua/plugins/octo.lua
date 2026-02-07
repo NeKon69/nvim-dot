@@ -31,10 +31,10 @@ return {
 			})
 		end,
 		keys = {
-			{ "<leader>oi", "<cmd>Octo issue list<cr>", desc = "List Issues" },
-			{ "<leader>op", "<cmd>Octo pr list<cr>", desc = "List PRs" },
-			{ "<leader>on", "<cmd>Octo notification list<cr>", desc = "List Notifications" },
-			{ "<leader>or", "<cmd>Octo repo view<cr>", desc = "View Current Repo" },
+			{ "<leader>gi", "<cmd>Octo issue list<cr>", desc = "List Issues" },
+			{ "<leader>gr", "<cmd>Octo pr list<cr>", desc = "List PRs" },
+			{ "<leader>gn", "<cmd>Octo notification list<cr>", desc = "List Notifications" },
+			{ "<leader>gv", "<cmd>Octo repo view<cr>", desc = "View Current Repo" },
 		},
 	},
 }
