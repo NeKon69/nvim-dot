@@ -4,7 +4,7 @@ local Path = require("plenary.path")
 local root_markers = { ".git", "CMakeLists.txt", "Makefile", "package.json", "justfile" }
 local last_recorded_pos = ""
 local current_nav_idx = nil
-local is_navigating = false -- Блокировщик записи при навигации
+local is_navigating = false
 
 M.get_project_root = function()
 	local current_file = vim.api.nvim_buf_get_name(0)
@@ -28,20 +28,16 @@ M.record = function(action_name)
 	local winid = vim.api.nvim_get_current_win()
 	local bufnr = vim.api.nvim_get_current_buf()
 
-	-- 1. Игнорим плавающие окна (floating)
 	local win_config = vim.api.nvim_win_get_config(winid)
 	if win_config.relative ~= "" then
 		return
 	end
 
-	-- 2. ГЛАВНЫЙ ФИЛЬТР: Игнорим всё, что не является обычным файлом
-	-- У OverseerList, DAP-окон, NvimTree и терминалов buftype всегда НЕ пустой
 	local buftype = vim.bo[bufnr].buftype
 	if buftype ~= "" then
 		return
 	end
 
-	-- 3. Дополнительный фильтр по filetype для окон, которые прикидываются обычными
 	local filetype = vim.bo[bufnr].filetype
 	local ft_ignore = {
 		["OverseerList"] = true,
@@ -50,13 +46,11 @@ M.record = function(action_name)
 		["undotree"] = true,
 		["diff"] = true,
 	}
-	-- Игнорим если filetype в списке или начинается на dapui_
 	if ft_ignore[filetype] or filetype:match("^dapui_") or filetype == "" then
 		return
 	end
 
 	local file_path = vim.api.nvim_buf_get_name(bufnr)
-	-- Проверяем, что это реальный путь на диске
 	if file_path == "" or not (file_path:match("^/") or file_path:match("^[A-Z]:")) then
 		return
 	end
@@ -64,7 +58,6 @@ M.record = function(action_name)
 	local root = M.get_project_root()
 	local cursor = vim.api.nvim_win_get_cursor(winid)
 
-	-- Относительный путь (через pcall на всякий случай, чтобы не упасть если путь странный)
 	local ok, rel_path = pcall(function()
 		return Path:new(file_path):make_relative(root)
 	end)
@@ -86,14 +79,36 @@ M.record = function(action_name)
 		dot_nvim:mkdir({ parents = true })
 	end
 
-	local history_file = dot_nvim:joinpath("history")
-	local entry = string.format("%d|%s|%s|%d|%d\n", os.time(), action_name, rel_path, cursor[1], cursor[2])
-
-	local f = io.open(history_file:expand(), "a")
-	if f then
-		f:write(entry)
-		f:close()
+	local history_path = dot_nvim:joinpath("history")
+	local lines = {}
+	if history_path:exists() then
+		lines = vim.fn.readfile(history_path:expand())
 	end
+
+	local new_entry = string.format("%d|%s|%s|%d|%d", os.time(), action_name, rel_path, cursor[1], cursor[2])
+
+	local found_idx = nil
+	local start_check = math.max(1, #lines - 2)
+
+	for i = #lines, start_check, -1 do
+		local parts = vim.split(lines[i], "|")
+		if parts[3] == rel_path and tonumber(parts[4]) == cursor[1] and tonumber(parts[5]) == cursor[2] then
+			found_idx = i
+			break
+		end
+	end
+
+	if found_idx then
+		table.remove(lines, found_idx)
+	end
+
+	table.insert(lines, new_entry)
+
+	if #lines > 1000 then
+		table.remove(lines, 1)
+	end
+
+	vim.fn.writefile(lines, history_path:expand())
 end
 
 M.nav_history = function(direction)
@@ -111,14 +126,12 @@ M.nav_history = function(direction)
 		return
 	end
 
-	-- Если начинаем навигацию впервые, ставим указатель на самый конец
 	if current_nav_idx == nil then
 		current_nav_idx = #lines
 	end
 
 	local new_idx = current_nav_idx + direction
 
-	-- Проверка границ
 	if new_idx < 1 then
 		new_idx = 1
 		vim.notify("Start of history", 1)
@@ -130,16 +143,20 @@ M.nav_history = function(direction)
 	if new_idx ~= current_nav_idx or direction == 0 then
 		current_nav_idx = new_idx
 		local parts = vim.split(lines[current_nav_idx], "|")
-		local full_path = Path:new(root, parts[3]):expand()
+		local target_rel_path = parts[3]
+		local full_path = Path:new(root, target_rel_path):expand()
 
 		if vim.fn.filereadable(full_path) == 1 then
-			-- Включаем режим навигации, чтобы record() проигнорировал этот переход
 			is_navigating = true
 
-			vim.cmd("e " .. full_path)
-			vim.api.nvim_win_set_cursor(0, { tonumber(parts[4]), tonumber(parts[5]) })
+			local current_full_path = vim.api.nvim_buf_get_name(0)
+			if current_full_path == full_path then
+				vim.api.nvim_win_set_cursor(0, { tonumber(parts[4]), tonumber(parts[5]) })
+			else
+				vim.cmd("e " .. full_path)
+				vim.api.nvim_win_set_cursor(0, { tonumber(parts[4]), tonumber(parts[5]) })
+			end
 
-			-- Выключаем режим навигации после того как все события отработают
 			vim.schedule(function()
 				is_navigating = false
 				last_recorded_pos = string.format("%s:%s:%s", parts[3], parts[4], parts[5])
@@ -148,7 +165,6 @@ M.nav_history = function(direction)
 	end
 end
 
--- Остальное (wrap_jump, list_history) остается так же
 M.wrap_jump = function(cmd, action)
 	return function()
 		M.record(action or "Jump")

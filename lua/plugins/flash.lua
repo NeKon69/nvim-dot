@@ -13,16 +13,6 @@ return {
 				end,
 				desc = "Flash",
 			},
-
-			-- Equivalent to your 'S' mapping (Leap AST / Treesitter)
-			{
-				"S",
-				mode = { "n", "x", "o" },
-				function()
-					require("flash").treesitter()
-				end,
-				desc = "Flash Treesitter",
-			},
 		},
 	},
 }
