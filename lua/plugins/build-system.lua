@@ -130,6 +130,7 @@ return {
 		local debug_meta_name = ".nvim/debug_targets.json"
 		local refresh_metadata
 		local get_current_run_config_from_targets
+		local run_program_probe
 
 		-- === HELPERS ===
 
@@ -415,7 +416,7 @@ return {
 			}
 		end
 
-		local function run_program_probe(cmd_array)
+		run_program_probe = function(cmd_array)
 			if type(cmd_array) ~= "table" or #cmd_array == 0 then
 				return nil
 			end
@@ -436,6 +437,78 @@ return {
 				table.insert(out, vim.fn.shellescape(tostring(part)))
 			end
 			return table.concat(out, " ")
+		end
+
+		local function prompt_quote(arg)
+			local s = tostring(arg or "")
+			if s == "" then
+				return '""'
+			end
+			if s:find("%s") or s:find('"') or s:find("'") then
+				s = s:gsub("\\", "\\\\"):gsub('"', '\\"')
+				return '"' .. s .. '"'
+			end
+			return s
+		end
+
+		local function prompt_join(parts)
+			local out = {}
+			for _, part in ipairs(parts or {}) do
+				table.insert(out, prompt_quote(part))
+			end
+			return table.concat(out, " ")
+		end
+
+		local function list_equal(a, b)
+			if type(a) ~= "table" or type(b) ~= "table" then
+				return false
+			end
+			if #a ~= #b then
+				return false
+			end
+			for i = 1, #a do
+				if tostring(a[i]) ~= tostring(b[i]) then
+					return false
+				end
+			end
+			return true
+		end
+
+		local function build_template_command_for_active_run()
+			local effective, err = targets_config.get_effective("run")
+			if not effective then
+				return nil, err
+			end
+			local parts = {}
+			if type(effective.program) == "string" and effective.program ~= "" then
+				table.insert(parts, effective.program)
+			else
+				local resolved_program = targets_config.resolve_program(effective, run_program_probe)
+				if not resolved_program or resolved_program == "" then
+					return nil, "No program resolved for run target '" .. effective.target .. "' profile '" .. effective.profile .. "'."
+				end
+				table.insert(parts, resolved_program)
+			end
+			if type(effective.args) == "table" then
+				for _, a in ipairs(effective.args) do
+					table.insert(parts, tostring(a))
+				end
+			else
+				for _, a in ipairs(targets_config.resolve_args(effective)) do
+					table.insert(parts, tostring(a))
+				end
+			end
+			return prompt_join(parts), nil
+		end
+
+		local function sync_last_run_command_from_active()
+			local cmd = build_template_command_for_active_run()
+			if not cmd or cmd == "" then
+				return
+			end
+			local s = load_runtime_state()
+			s.last_run_command = cmd
+			save_runtime_state(s)
 		end
 
 		local function rel_to_root(abs_path, root)
@@ -951,15 +1024,28 @@ return {
 
 		local function run_task_by_name(name)
 			if name == "run" then
-				local run_cfg, err = get_current_run_config_from_targets()
-				if not run_cfg then
-					vim.notify(err or "Run target is not configured.", vim.log.levels.ERROR)
+				local effective, eff_err = targets_config.get_effective("run")
+				if not effective then
+					vim.notify(eff_err or "Run target is not configured.", vim.log.levels.ERROR)
 					return
 				end
-				local cmd = shell_join({ run_cfg.program })
-				if type(run_cfg.args) == "table" and #run_cfg.args > 0 then
-					cmd = cmd .. " " .. shell_join(run_cfg.args)
+				local run_cfg, run_err = get_current_run_config_from_targets()
+				if not run_cfg then
+					vim.notify(run_err or "Run target is not configured.", vim.log.levels.ERROR)
+					return
 				end
+				local state = load_runtime_state()
+				local cmd_template = state.last_run_command
+				if type(cmd_template) ~= "string" or cmd_template == "" then
+					cmd_template = build_template_command_for_active_run()
+				end
+				local rendered = targets_config.render_template(cmd_template or "", effective)
+				local parts = parse_args(rendered)
+				if #parts == 0 then
+					vim.notify("Run command template is empty.", vim.log.levels.ERROR)
+					return
+				end
+				local cmd = shell_join(parts)
 				local function launch_run()
 					require("toggleterm").exec(cmd, nil, nil, run_cfg.cwd or vim.fn.getcwd())
 				end
@@ -1023,17 +1109,17 @@ return {
 
 			local state = load_runtime_state()
 			local default_cmd
+			local generated_default = build_template_command_for_active_run()
+				or prompt_join(vim.list_extend({ run_cfg.program }, vim.deepcopy(run_cfg.args or {})))
 			if type(state.last_run_command) == "string" and state.last_run_command ~= "" then
-				default_cmd = state.last_run_command
+				local parsed = parse_args(state.last_run_command)
+				if #parsed > 0 then
+					default_cmd = state.last_run_command
+				else
+					default_cmd = generated_default
+				end
 			else
-				local args_text = ""
-				if type(run_cfg.args) == "table" and #run_cfg.args > 0 then
-					args_text = shell_join(run_cfg.args)
-				end
-				default_cmd = shell_join({ run_cfg.program })
-				if args_text ~= "" then
-					default_cmd = default_cmd .. " " .. args_text
-				end
+				default_cmd = generated_default
 			end
 
 			vim.cmd("tabnew")
@@ -1103,12 +1189,20 @@ return {
 				local target = active_target and cfg.targets and cfg.targets[active_target] or nil
 				local profile = target and target.profiles and target.profiles[active_profile] or nil
 				if type(profile) == "table" and #parts > 0 then
-					profile.program = parts[1]
+					local new_program = parts[1]
 					local args = {}
 					for i = 2, #parts do
 						table.insert(args, parts[i])
 					end
-					profile.args = args
+					local effective = targets_config.get_effective("run")
+					local old_program = effective and effective.program or nil
+					local old_args = (effective and type(effective.args) == "table") and effective.args or {}
+					if old_program == nil or tostring(new_program) ~= tostring(old_program) then
+						profile.program = new_program
+					end
+					if not list_equal(args, old_args or {}) then
+						profile.args = args
+					end
 					targets_config.write_config(cfg)
 				end
 				local s = load_runtime_state()
@@ -1140,6 +1234,10 @@ return {
 				if not ensure_terminal() then
 					vim.notify("Failed to ensure runner terminal.", vim.log.levels.ERROR)
 					return
+				end
+				local effective = targets_config.get_effective("run")
+				if effective then
+					cmdline = targets_config.render_template(cmdline, effective)
 				end
 				vim.fn.chansend(job_id, "clear\n")
 				vim.fn.chansend(job_id, cmdline .. "\n")
@@ -1189,13 +1287,14 @@ return {
 			end
 			local program = targets_config.resolve_program(effective, run_program_probe)
 			local args = targets_config.resolve_args(effective)
+			local cwd = targets_config.resolve_cwd(effective) or vim.fn.getcwd()
 			if not program or program == "" then
 				return nil, "No program resolved for run target '" .. effective.target .. "' profile '" .. effective.profile .. "'."
 			end
 			return {
 				program = program,
 				args = args,
-				cwd = effective.cwd or vim.fn.getcwd(),
+				cwd = cwd,
 				language = effective.language,
 				rebuild_policy = effective.rebuild_policy or "auto",
 				build_task = effective.build_task or "build",
@@ -1211,7 +1310,7 @@ return {
 				return nil, nil
 			end
 			local mode = (effective.mode or "launch"):lower()
-			local cwd = effective.cwd or vim.fn.getcwd()
+			local cwd = targets_config.resolve_cwd(effective) or vim.fn.getcwd()
 			local python = get_python_interpreter(cwd)
 			if mode == "pytest" then
 				if not effective.pytest_target or effective.pytest_target == "" then
@@ -1418,6 +1517,7 @@ return {
 					end
 					_G.BuildSystem.profile = c
 					save_state()
+					sync_last_run_command_from_active()
 					overseer.clear_task_cache()
 				end
 			end)
@@ -1442,6 +1542,7 @@ return {
 					end
 					save_state()
 					_G.BuildSystem.available_profiles = targets_config.list_profiles(c)
+					sync_last_run_command_from_active()
 					overseer.clear_task_cache()
 				end
 			end)
@@ -1453,6 +1554,7 @@ return {
 			callback = function()
 				load_state()
 				refresh_metadata()
+				sync_last_run_command_from_active()
 			end,
 		})
 		vim.api.nvim_create_autocmd("BufWritePost", {

@@ -301,14 +301,47 @@ function M.resolve_relative_path(path)
 	return (project_dir() .. "/" .. path):gsub("/+", "/")
 end
 
+local function template_vars(effective)
+	return {
+		profile = effective and effective.profile or "",
+		target = effective and effective.target or "",
+		language = effective and effective.language or "",
+		action = effective and effective.action or "",
+		project_root = effective and effective.project_root or project_dir(),
+	}
+end
+
+function M.render_template(value, effective)
+	if type(value) ~= "string" then
+		return value
+	end
+	local vars = template_vars(effective)
+	local rendered = value:gsub("({{%s*([%w_]+)%s*}})", function(token, key)
+		local v = vars[key]
+		if v == nil then
+			return token
+		end
+		return tostring(v)
+	end)
+	return rendered
+end
+
 function M.resolve_program(effective, probe_runner)
 	if type(effective.program) == "string" and effective.program ~= "" then
-		return M.resolve_relative_path(effective.program)
+		return M.resolve_relative_path(M.render_template(effective.program, effective))
 	end
 	if type(effective.program_probe) == "table" and #effective.program_probe > 0 and type(probe_runner) == "function" then
-		local program = probe_runner(effective.program_probe)
+		local probe = {}
+		for _, part in ipairs(effective.program_probe) do
+			if type(part) == "string" then
+				table.insert(probe, M.render_template(part, effective))
+			else
+				table.insert(probe, part)
+			end
+		end
+		local program = probe_runner(probe)
 		if type(program) == "string" and program ~= "" then
-			return M.resolve_relative_path(program)
+			return M.resolve_relative_path(M.render_template(program, effective))
 		end
 	end
 	return nil
@@ -316,9 +349,24 @@ end
 
 function M.resolve_args(effective)
 	if type(effective.args) == "table" then
-		return vim.deepcopy(effective.args)
+		local out = {}
+		for _, arg in ipairs(effective.args) do
+			if type(arg) == "string" then
+				table.insert(out, M.render_template(arg, effective))
+			else
+				table.insert(out, arg)
+			end
+		end
+		return out
 	end
 	return {}
+end
+
+function M.resolve_cwd(effective)
+	if type(effective.cwd) ~= "string" or effective.cwd == "" then
+		return nil
+	end
+	return M.resolve_relative_path(M.render_template(effective.cwd, effective))
 end
 
 function M.refresh_from_just(available_targets, available_profiles)
