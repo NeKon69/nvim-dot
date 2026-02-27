@@ -43,7 +43,6 @@ force_plugin_paths()
 vim.opt.cmdheight = 2
 vim.opt.sessionoptions = {
 	"buffers",
-	"curdir",
 	"tabpages",
 	"winsize",
 	"help",
@@ -56,6 +55,7 @@ vim.opt.shortmess:append("I")
 
 require("user.triforce_bridge")
 require("user.options")
+require("user.cwd_lock").setup()
 require("user.keymaps")
 require("lazy").setup("plugins", {
 	rocks = {

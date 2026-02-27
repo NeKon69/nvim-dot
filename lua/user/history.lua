@@ -5,6 +5,7 @@ local project_root = require("user.project_root")
 local defaults = {
 	max_entries = 1000,
 	dedupe_recent_window = 3,
+	open_coalesce_window_s = 2,
 	store_rel_path = ".nvim/history.jsonl",
 	capture_debounce_ms = 150,
 	capture = {
@@ -179,6 +180,30 @@ local function trim_entries(entries)
 	while #entries > state.config.max_entries do
 		table.remove(entries, 1)
 	end
+end
+
+local function should_coalesce_with_last(last, current)
+	if not last or not current then
+		return false
+	end
+	if last.path ~= current.path then
+		return false
+	end
+
+	local age = (tonumber(current.ts) or 0) - (tonumber(last.ts) or 0)
+	if age < 0 or age > state.config.open_coalesce_window_s then
+		return false
+	end
+
+	if last.action == "Switch" and current.action == "Switch" then
+		return true
+	end
+
+	if last.action == "Switch" and (last.line ~= current.line or last.col ~= current.col) then
+		return true
+	end
+
+	return false
 end
 
 local function parse_legacy_line(line)
@@ -530,6 +555,11 @@ local function maybe_record(action_name)
 	end
 
 	local entries = load_entries(root)
+
+	local last = entries[#entries]
+	if should_coalesce_with_last(last, entry) then
+		table.remove(entries, #entries)
+	end
 
 	if ps.nav_index and ps.nav_index < #entries then
 		for i = #entries, ps.nav_index + 1, -1 do

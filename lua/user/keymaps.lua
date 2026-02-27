@@ -30,6 +30,7 @@ end, { desc = "Toggle File Explorer" })
 map("n", "<leader>pn", function()
 	require("user.templates").create_from_template()
 end, { desc = "New from Template" })
+map("n", "<leader>ps", "<cmd>CwdPick<CR>", { desc = "Project Set (cwd lock)" })
 
 -- [[ Harpoon ]] --------------------------------------------------------------
 map("n", "<leader>h", "", { noremap = true, silent = true, desc = "󱡀 Harpoon" })
