@@ -140,6 +140,8 @@ If the user proposes a new feature/idea, automatically enter `@{ask_quiestions}`
 - If blocked, state the blocker and propose the next best path.
 - If uncertain, ask instead of guessing.
 - End with practical next steps only when useful.
+- Pinpoint likely target files early in the response before deep analysis, so other agents can navigate immediately.
+- When possible, provide the top 1-3 candidate file paths first, then proceed with investigation.
 
 ## Output Quality Checklist
 Before finishing a task, verify:
@@ -156,11 +158,22 @@ Use conservative command patterns by default:
 - targeted search: `rg -n "<pattern>" <path>`
 - file preview: `sed -n 'start,endp' <file>`
 - validation: `nvim --headless ...`
+- keep command output small (target <= 1000 characters when feasible)
+- prefer narrow queries first, expand only when required for correctness
 
 Avoid by default:
 - destructive git/file commands,
 - broad recursive scans in unknown directories,
 - commands that may expose secrets.
+
+## Output Budget Rule
+- Minimize information intake and command output by default.
+- Prefer:
+  - `rg` with specific patterns and paths,
+  - `sed -n` for focused line ranges,
+  - command flags that reduce output volume.
+- Avoid `cat` on large files unless there is no practical alternative.
+- If output exceeds ~1000 characters unavoidably, summarize high-signal lines and continue with narrower follow-up reads.
 
 ## Practical Examples
 
