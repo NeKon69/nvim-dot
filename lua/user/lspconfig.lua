@@ -15,6 +15,45 @@ M.capabilities.textDocument.completion.completionItem.resolveSupport = {
 	properties = { "documentation", "detail", "additionalTextEdits" },
 }
 
+local function has_hover_contents(contents)
+	if not contents then
+		return false
+	end
+
+	if type(contents) == "string" then
+		return vim.trim(contents) ~= ""
+	end
+
+	if type(contents) ~= "table" then
+		return false
+	end
+
+	if contents.value and type(contents.value) == "string" then
+		return vim.trim(contents.value) ~= ""
+	end
+
+	if vim.islist(contents) then
+		for _, item in ipairs(contents) do
+			if has_hover_contents(item) then
+				return true
+			end
+		end
+		return false
+	end
+
+	for _, item in pairs(contents) do
+		if has_hover_contents(item) then
+			return true
+		end
+	end
+	return false
+end
+
+local function cursor_key()
+	local pos = vim.api.nvim_win_get_cursor(0)
+	return string.format("%d:%d", pos[1], pos[2])
+end
+
 vim.api.nvim_create_autocmd("LspAttach", {
 	group = vim.api.nvim_create_augroup("UserLspConfig", { clear = true }),
 	callback = function(event)
@@ -35,6 +74,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		if client and client.server_capabilities.inlayHintProvider then
 			vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 		end
+		if client and (client.name == "pyright") and client.server_capabilities.semanticTokensProvider then
+			pcall(vim.lsp.semantic_tokens.start, bufnr, client.id)
+		end
 
 		local history = require("user.history")
 
@@ -45,7 +87,18 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		force_map("gi", history.wrap_jump(vim.lsp.buf.implementation, "Implement"), "LSP Implementation")
 		force_map("gt", history.wrap_jump("Lspsaga goto_type_definition", "Type Def"), "LSP Type Definition")
 		force_map("gh", history.wrap_jump("Lspsaga finder", "LSP Finder"), "LSP Finder")
-		force_map("K", "<cmd>Lspsaga hover_doc<CR>", "LSP Hover")
+
+		local hover_state = { last_key = "", last_at = 0 }
+		local function run_hover(manual)
+			hover_state.last_key = cursor_key()
+			hover_state.last_at = vim.uv.now()
+			local cmd = manual and "Lspsaga hover_doc" or "Lspsaga hover_doc ++silent"
+			vim.cmd(cmd)
+		end
+
+		force_map("K", function()
+			run_hover(true)
+		end, "LSP Hover")
 		force_map("<leader>ca", "<cmd>Lspsaga code_action<CR>", "Code Action")
 		force_map("<leader>cr", "<cmd>Lspsaga rename<CR>", "Rename")
 		force_map("<leader>o", "<cmd>Lspsaga outline<CR>", "Outline (Symbols)")
@@ -98,21 +151,46 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				if vim.fn.mode() ~= "n" or vim.fn.pumvisible() ~= 0 or is_hover_requesting then
 					return
 				end
+				local cword = vim.fn.expand("<cword>")
+				if cword == "" then
+					return
+				end
 				if hover_timer then
 					vim.fn.timer_stop(hover_timer)
 				end
 				hover_timer = vim.fn.timer_start(500, function()
-					if vim.api.nvim_buf_is_valid(bufnr) then
+					if not vim.api.nvim_buf_is_valid(bufnr) then
+						return
+					end
+
+					local active_key = cursor_key()
+					if active_key == hover_state.last_key and (vim.uv.now() - hover_state.last_at) < 900 then
+						return
+					end
+
+					is_hover_requesting = true
+					local params = vim.lsp.util.make_position_params(0, client and client.offset_encoding or "utf-16")
+					vim.lsp.buf_request_all(bufnr, "textDocument/hover", params, function(results)
+						if not vim.api.nvim_buf_is_valid(bufnr) then
+							is_hover_requesting = false
+							return
+						end
+
+						local has_content = false
+						for _, res in pairs(results or {}) do
+							if res and res.result and has_hover_contents(res.result.contents) then
+								has_content = true
+								break
+							end
+						end
+
 						local hover = require("lspsaga.hover")
 						local win_valid = hover.winid and vim.api.nvim_win_is_valid(hover.winid)
-						if not win_valid and not is_hover_requesting then
-							is_hover_requesting = true
-							vim.cmd("Lspsaga hover_doc ++silent")
-							vim.defer_fn(function()
-								is_hover_requesting = false
-							end, 1000)
+						if has_content and not win_valid and active_key == cursor_key() then
+							run_hover(false)
 						end
-					end
+						is_hover_requesting = false
+					end)
 				end)
 			end,
 		})

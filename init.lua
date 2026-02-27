@@ -63,6 +63,7 @@ require("lazy").setup("plugins", {
 	},
 })
 require("user.project-setup").setup()
+require("user.python_env").setup()
 require("user.lspconfig")
 require("user.history")
 local clip = require("user.clipboard")

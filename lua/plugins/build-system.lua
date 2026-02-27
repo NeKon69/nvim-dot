@@ -19,7 +19,7 @@ local function parse_args(args_str)
 		if escaped then
 			current = current .. char
 			escaped = false
-		elseif char == "\\" and not in_quote then
+		elseif char == "\\" then
 			escaped = true
 		elseif (char == '"' or char == "'") and not escaped then
 			if in_quote == char then
@@ -42,6 +42,43 @@ local function parse_args(args_str)
 		table.insert(args, current)
 	end
 	return args
+end
+
+local function read_json_file(path)
+	if vim.fn.filereadable(path) ~= 1 then
+		return {}
+	end
+	local ok, lines = pcall(vim.fn.readfile, path)
+	if not ok or not lines or #lines == 0 then
+		return {}
+	end
+	local decoded_ok, decoded = pcall(vim.json.decode, table.concat(lines, "\n"))
+	if not decoded_ok or type(decoded) ~= "table" then
+		return {}
+	end
+	return decoded
+end
+
+local function write_json_file(path, data)
+	local dir = vim.fn.fnamemodify(path, ":h")
+	if vim.fn.isdirectory(dir) == 0 then
+		vim.fn.mkdir(dir, "p")
+	end
+	local ok, encoded = pcall(vim.json.encode, data)
+	if not ok then
+		return false
+	end
+	local tmp = path .. ".tmp"
+	local wrote = pcall(vim.fn.writefile, { encoded }, tmp)
+	if not wrote then
+		return false
+	end
+	local renamed = os.rename(tmp, path)
+	if not renamed then
+		pcall(vim.fn.delete, tmp)
+		return false
+	end
+	return true
 end
 
 return {
@@ -87,6 +124,7 @@ return {
 		overseer.setup(opts)
 
 		local state_file = vim.fn.stdpath("state") .. "/build_system_just.json"
+		local debug_meta_name = ".nvim/debug_targets.json"
 
 		-- === HELPERS ===
 
@@ -131,7 +169,241 @@ return {
 			end
 		end
 
+		local function get_python_interpreter(cwd)
+			local project = cwd or vim.fn.getcwd()
+			local venv_python = project .. "/.nvim/venv/bin/python"
+			if vim.fn.executable(venv_python) == 1 then
+				return venv_python
+			end
+			local py = vim.fn.exepath("python3")
+			if py ~= "" then
+				return py
+			end
+			return "python3"
+		end
+
+		local function get_project_root(cwd_hint)
+			local start = cwd_hint or vim.fn.getcwd()
+			local justfile = vim.fs.find({ "justfile", ".justfile" }, { upward = true, path = start, type = "file" })[1]
+			if justfile then
+				return vim.fn.fnamemodify(justfile, ":p:h")
+			end
+			local git = vim.fs.find({ ".git" }, { upward = true, path = start, type = "directory" })[1]
+			if git then
+				return vim.fn.fnamemodify(git, ":p:h")
+			end
+			return vim.fn.fnamemodify(start, ":p")
+		end
+
+		local function debug_meta_file(cwd)
+			return get_project_root(cwd) .. "/" .. debug_meta_name
+		end
+
+		local function load_debug_meta(cwd)
+			local data = read_json_file(debug_meta_file(cwd))
+			data.targets = data.targets or {}
+			return data
+		end
+
+		local function save_debug_meta(cwd, data)
+			return write_json_file(debug_meta_file(cwd), data)
+		end
+
+		local function set_target_debug_meta(target, meta, cwd)
+			local project = cwd or vim.fn.getcwd()
+			local data = load_debug_meta(project)
+			data.targets[target] = meta
+			save_debug_meta(project, data)
+		end
+
+		local function get_target_debug_meta(target, cwd)
+			local project = cwd or vim.fn.getcwd()
+			local data = load_debug_meta(project)
+			return data.targets[target]
+		end
+
+		local debug_resolvers = {}
+		local function register_debug_resolver(language, resolver)
+			debug_resolvers[language] = resolver
+		end
+
+		local function prompt_with_default(prompt, default_value)
+			local value = vim.fn.input(prompt, default_value or "")
+			if not value or value == "" then
+				return nil
+			end
+			return value
+		end
+
+		local function normalize_mode(mode)
+			local m = (mode or "launch"):lower()
+			if m == "pytest" then
+				return "pytest"
+			end
+			return "launch"
+		end
+
+		register_debug_resolver("python", function(target, meta, cwd)
+			local entry = vim.deepcopy(meta or {})
+			entry.language = "python"
+			entry.mode = normalize_mode(entry.mode)
+
+			if entry.mode == "launch" then
+				if not entry.program or entry.program == "" then
+					local default_program = vim.fn.filereadable(cwd .. "/main.py") == 1 and "main.py" or ""
+					local program = prompt_with_default(
+						string.format("debug target '%s' program: ", target),
+						default_program
+					)
+					if not program then
+						return nil, "Missing Python debug program."
+					end
+					entry.program = program
+				end
+				if entry.args == nil then
+					local args = vim.fn.input(string.format("debug target '%s' args: ", target), "")
+					entry.args = args or ""
+				end
+				return {
+					{
+						type = "python",
+						request = "launch",
+						name = "Target Debug: " .. target,
+						program = entry.program,
+						args = parse_args(entry.args or ""),
+						cwd = cwd,
+						pythonPath = get_python_interpreter(cwd),
+					},
+					entry,
+				}
+			end
+
+			if not entry.pytest_target or entry.pytest_target == "" then
+				local test_target = prompt_with_default(
+					string.format("debug pytest target '%s': ", target),
+					"tests"
+				)
+				if not test_target then
+					return nil, "Missing pytest target."
+				end
+				entry.pytest_target = test_target
+			end
+			if entry.pytest_args == nil then
+				local pytest_args = vim.fn.input(string.format("debug pytest args '%s': ", target), "")
+				entry.pytest_args = pytest_args or ""
+			end
+
+			local args = { "-m", "pytest", entry.pytest_target }
+			for _, v in ipairs(parse_args(entry.pytest_args or "")) do
+				table.insert(args, v)
+			end
+			return {
+				{
+					type = "python",
+					request = "launch",
+					name = "Target Pytest Debug: " .. target,
+					program = get_python_interpreter(cwd),
+					args = args,
+					cwd = cwd,
+					pythonPath = get_python_interpreter(cwd),
+				},
+				entry,
+			}
+		end)
+
+		local function detect_language_for_filetype(ft)
+			local map = {
+				python = "python",
+				py = "python",
+				c = "cpp",
+				cpp = "cpp",
+				rust = "rust",
+				go = "go",
+				lua = "lua",
+			}
+			return map[ft]
+		end
+
+		local function detect_language_for_target(target, cwd)
+			local stored = get_target_debug_meta(target, cwd) or {}
+			if stored.language then
+				return stored.language, stored
+			end
+
+			local ft = vim.bo.filetype
+			local guessed = detect_language_for_filetype(ft)
+			if guessed then
+				stored.language = guessed
+				set_target_debug_meta(target, stored, cwd)
+				return guessed, stored
+			end
+
+			local picked = prompt_with_default(
+				string.format("debug language for target '%s' (python/cpp/rust/go/lua): ", target),
+				"python"
+			)
+			if not picked then
+				return nil, stored
+			end
+			stored.language = picked:lower()
+			set_target_debug_meta(target, stored, cwd)
+			return stored.language, stored
+		end
+
+		local function get_current_debug_spec()
+			local cwd = vim.fn.getcwd()
+			local target = _G.BuildSystem.target or "Default"
+			local language, existing = detect_language_for_target(target, cwd)
+			if not language then
+				return nil, "No debug language selected."
+			end
+			local resolver = debug_resolvers[language]
+			if not resolver then
+				return nil, "No debug resolver for language: " .. language
+			end
+
+			local spec_and_entry, err = resolver(target, existing or {}, cwd)
+			if not spec_and_entry then
+				return nil, err
+			end
+			local spec, entry = spec_and_entry[1], spec_and_entry[2]
+			entry.language = language
+			set_target_debug_meta(target, entry, cwd)
+			return spec
+		end
+
+		local function has_current_target_debug_meta()
+			local cwd = vim.fn.getcwd()
+			local target = _G.BuildSystem.target or "Default"
+			return get_target_debug_meta(target, cwd) ~= nil
+		end
+
+		local function get_current_file_debug_spec()
+			local file = vim.api.nvim_buf_get_name(0)
+			if file == "" then
+				return nil, "Current buffer has no file path."
+			end
+			local ft = vim.bo.filetype
+			local language = detect_language_for_filetype(ft)
+			if language ~= "python" then
+				return nil, "Current-file debug is only configured for Python right now."
+			end
+
+			local cwd = vim.fn.fnamemodify(file, ":p:h")
+			return {
+				type = "python",
+				request = "launch",
+				name = "File Debug: " .. vim.fn.fnamemodify(file, ":t"),
+				program = file,
+				args = {},
+				cwd = cwd,
+				pythonPath = get_python_interpreter(vim.fn.getcwd()),
+			}
+		end
+
 		local function evaluate_with_overrides(var_name, justfile, data)
+			local justfile_abs = vim.fn.fnamemodify(justfile, ":p")
+			local just_cwd = vim.fn.fnamemodify(justfile_abs, ":h")
 			local args = {}
 			if data.assignments.profile then
 				table.insert(args, "profile=" .. _G.BuildSystem.profile)
@@ -144,15 +416,24 @@ return {
 					table.insert(args, string.format("%s='%s'", k, v))
 				end
 			end
-			local tmp = vim.fn.tempname() .. ".just"
+			local tmp = string.format(
+				"%s/.nvim_just_query_%d_%d.just",
+				just_cwd,
+				vim.fn.getpid(),
+				math.floor(vim.loop.hrtime() / 1000)
+			)
 			vim.fn.writefile(
-				{ string.format("import '%s'", justfile), "_query:", "    @echo {{ " .. var_name .. " }}" },
+				{
+					string.format("import '%s'", justfile_abs),
+					"_query:",
+					"    @echo {{ " .. var_name .. " }}",
+				},
 				tmp
 			)
 			local cmd = { "just", "-f", tmp }
 			vim.list_extend(cmd, args)
 			table.insert(cmd, "_query")
-			local obj = vim.system(cmd, { text = true }):wait()
+			local obj = vim.system(cmd, { text = true, cwd = just_cwd }):wait()
 			vim.fn.delete(tmp)
 			return obj.code == 0 and vim.trim(obj.stdout) or nil
 		end
@@ -308,6 +589,67 @@ return {
 			end
 			return nil
 		end
+		_G.BuildSystem.get_current_debug_spec = get_current_debug_spec
+		_G.BuildSystem.get_current_file_debug_spec = get_current_file_debug_spec
+		_G.BuildSystem.set_target_debug_meta = set_target_debug_meta
+		_G.BuildSystem.get_target_debug_meta = get_target_debug_meta
+		_G.BuildSystem.has_current_target_debug_meta = has_current_target_debug_meta
+		_G.BuildSystem.register_debug_resolver = register_debug_resolver
+
+		vim.api.nvim_create_user_command("DebugTargetShow", function()
+			local target = _G.BuildSystem.target or "Default"
+			local entry = get_target_debug_meta(target, vim.fn.getcwd())
+			if not entry then
+				vim.notify("No debug metadata for target: " .. target, vim.log.levels.INFO)
+				return
+			end
+			vim.notify("Debug target '" .. target .. "': " .. vim.inspect(entry), vim.log.levels.INFO)
+		end, {})
+
+		vim.api.nvim_create_user_command("DebugTargetEdit", function()
+			local target = _G.BuildSystem.target or "Default"
+			local cwd = vim.fn.getcwd()
+			local existing = get_target_debug_meta(target, cwd) or {}
+			local lang = prompt_with_default(
+				string.format("debug language for target '%s': ", target),
+				existing.language or "python"
+			)
+			if not lang then
+				return
+			end
+			lang = lang:lower()
+			existing.language = lang
+			if lang == "python" then
+				existing.mode = normalize_mode(
+					prompt_with_default(
+						string.format("debug mode for '%s' (launch/pytest): ", target),
+						existing.mode or "launch"
+					) or "launch"
+				)
+				if existing.mode == "pytest" then
+					existing.pytest_target = prompt_with_default(
+						string.format("pytest target for '%s': ", target),
+						existing.pytest_target or "tests"
+					) or existing.pytest_target
+					existing.pytest_args = vim.fn.input(
+						string.format("pytest args for '%s': ", target),
+						existing.pytest_args or ""
+					)
+				else
+					existing.program = prompt_with_default(
+						string.format("program for '%s': ", target),
+						existing.program
+							or ((vim.fn.filereadable(cwd .. "/main.py") == 1 and "main.py") or "")
+					) or existing.program
+					existing.args = vim.fn.input(
+						string.format("args for '%s': ", target),
+						existing.args or ""
+					)
+				end
+			end
+			set_target_debug_meta(target, existing, cwd)
+			vim.notify("Saved debug metadata for target: " .. target, vim.log.levels.INFO)
+		end, {})
 
 		-- === QUICK RUN (Interactive + CWD fix) ===
 

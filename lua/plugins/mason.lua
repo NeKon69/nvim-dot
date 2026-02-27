@@ -14,6 +14,7 @@ return {
 		config = function()
 			require("mason-lspconfig").setup({
 				ensure_installed = { "clangd", "lua_ls" },
+				automatic_enable = false,
 			})
 		end,
 	},
@@ -24,7 +25,6 @@ return {
 				ensure_installed = {
 					"clangd",
 					"lua-language-server",
-					"pyright",
 					"glsl_analyzer",
 					"neocmakelsp",
 					"neocmake",
@@ -33,7 +33,6 @@ return {
 					"black",
 					"rustfmt",
 					"jq",
-					"selene",
 					"ruff",
 					"jsonlint",
 					"markdownlint",
@@ -41,6 +40,7 @@ return {
 					"cmakelang",
 					"cmakelint",
 					"codelldb",
+					"debugpy",
 					"asmfmt",
 				},
 				auto_update = false,

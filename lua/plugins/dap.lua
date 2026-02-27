@@ -6,10 +6,14 @@ return {
 			"jay-babu/mason-nvim-dap.nvim",
 			"igorlfs/nvim-dap-view",
 			"stevearc/overseer.nvim",
+			"Weissle/persistent-breakpoints.nvim",
 		},
 		config = function()
 			local dap = require("dap")
 			dap.defaults.fallback.auto_continue_if_many_stopped = true
+			require("persistent-breakpoints").setup({
+				load_breakpoints_event = { "BufReadPost" },
+			})
 
 			require("nvim-dap-virtual-text").setup({
 				enabled = true,
@@ -55,10 +59,34 @@ return {
 				end)
 			end
 
+			local function get_debugpy_python()
+				local mason_debugpy = vim.fn.exepath("debugpy")
+				if mason_debugpy ~= "" then
+					return mason_debugpy
+				end
+				return "python3"
+			end
+
+			local function get_debugpy_adapter()
+				local adapter = vim.fn.exepath("debugpy-adapter")
+				if adapter ~= "" then
+					return adapter, {}
+				end
+
+				return get_debugpy_python(), { "-m", "debugpy.adapter" }
+			end
+
+			local function get_project_python()
+				local local_python = vim.fn.getcwd() .. "/.nvim/venv/bin/python"
+				if vim.fn.executable(local_python) == 1 then
+					return local_python
+				end
+				return get_debugpy_python()
+			end
+
 			dap.configurations.cpp = {
 				{
 					name = "Launch file",
-					stdio = { "payload.bin", nil, nil },
 					type = "codelldb",
 					request = "launch",
 					program = function()
@@ -84,6 +112,50 @@ return {
 			}
 			dap.configurations.c = dap.configurations.cpp
 			dap.configurations.rust = dap.configurations.cpp
+
+			local python_adapter_cmd, python_adapter_args = get_debugpy_adapter()
+			dap.adapters.python = {
+				type = "executable",
+				command = python_adapter_cmd,
+				args = python_adapter_args,
+			}
+			dap.configurations.python = {
+				{
+					type = "python",
+					request = "launch",
+					name = "Python: Launch current file",
+					program = "${file}",
+					cwd = "${workspaceFolder}",
+					pythonPath = get_project_python,
+				},
+				{
+					type = "python",
+					request = "launch",
+					name = "Python: Launch with args",
+					program = "${file}",
+					args = function()
+						return vim.split(vim.fn.input("Args: "), " ", { trimempty = true })
+					end,
+					cwd = "${workspaceFolder}",
+					pythonPath = get_project_python,
+				},
+				{
+					type = "python",
+					request = "attach",
+					name = "Python: Attach debugpy (localhost:5678)",
+					connect = function()
+						local port = tonumber(vim.fn.input("Port: ", "5678"))
+						return { host = "127.0.0.1", port = port or 5678 }
+					end,
+					cwd = "${workspaceFolder}",
+					pathMappings = {
+						{
+							localRoot = "${workspaceFolder}",
+							remoteRoot = ".",
+						},
+					},
+				},
+			}
 
 			vim.fn.sign_define("DapBreakpoint", { text = "🔴", texthl = "DiagnosticError" })
 			vim.fn.sign_define("DapBreakpointCondition", { text = "🟡", texthl = "DiagnosticWarn" })
@@ -278,6 +350,22 @@ return {
 				end
 
 				local overseer = require("overseer")
+				local debug_spec, debug_err = _G.BuildSystem
+					and _G.BuildSystem.get_current_debug_spec
+					and _G.BuildSystem.get_current_debug_spec()
+				if debug_spec then
+					dap.run(debug_spec)
+					return
+				end
+				local has_target_meta = _G.BuildSystem
+					and _G.BuildSystem.has_current_target_debug_meta
+					and _G.BuildSystem.has_current_target_debug_meta()
+				local ft = vim.bo.filetype
+				local is_native_fallback_ft = ft == "c" or ft == "cpp" or ft == "rust"
+				if debug_err and (has_target_meta or not is_native_fallback_ft) then
+					vim.notify(debug_err, vim.log.levels.WARN)
+					return
+				end
 				local run_config = _G.BuildSystem.get_current_run_config()
 
 				if run_config then
@@ -312,7 +400,21 @@ return {
 				end
 			end
 
+			local function debug_current_file()
+				if not _G.BuildSystem or not _G.BuildSystem.get_current_file_debug_spec then
+					vim.notify("BuildSystem debug resolver is unavailable.", vim.log.levels.WARN)
+					return
+				end
+				local spec, err = _G.BuildSystem.get_current_file_debug_spec()
+				if not spec then
+					vim.notify(err or "No current-file debug spec.", vim.log.levels.WARN)
+					return
+				end
+				dap.run(spec)
+			end
+
 			vim.keymap.set("n", "<leader>dd", smart_dap_toggle, { desc = "DAP: Smart Toggle/Start" })
+			vim.keymap.set("n", "<leader>bD", debug_current_file, { desc = "Debug Current File" })
 
 			vim.keymap.set("n", "<leader>dk", dap.terminate, { desc = "DAP: Terminate" })
 			vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "DAP: Toggle Breakpoint" })

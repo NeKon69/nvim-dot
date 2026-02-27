@@ -21,9 +21,6 @@ end, { desc = " Buffers" })
 map("n", "<leader>fo", function()
 	require("telescope.builtin").oldfiles()
 end, { desc = "🌍 Recent (Global)" })
-map({ "n", "t" }, "<leader>ft", function()
-	require("snacks").terminal()
-end, { desc = " Float Terminal" })
 
 -- [[ Project & Files ]] ------------------------------------------------------
 map("n", "<leader>p", "", { noremap = true, silent = true, desc = "󰓃 Project" })

@@ -36,7 +36,6 @@ return {
 			local lint = require("lint")
 
 			lint.linters_by_ft = {
-				lua = { "selene" },
 				python = { "ruff" },
 				json = { "jsonlint" },
 				markdown = { "markdownlint" },
