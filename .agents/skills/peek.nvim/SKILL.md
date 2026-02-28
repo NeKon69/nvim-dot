@@ -14,15 +14,18 @@ require("peek") -- table
 require("peek").close(...)
 require("peek").is_open(...)
 require("peek").open(...)
-require("peek").setup(p1)
+require("peek").setup(cfg)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("peek").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("peek").close(...)`: argument contract may be non-obvious; check :help/README.
-- `require("peek").is_open(...)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("peek").open(...)`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help peek`, the local README, and the GitHub README listed below.
+
+- `require("peek").setup(cfg)`
+- `require("peek").close(...)`
+- `require("peek").is_open(...)`
+- `require("peek").open(...)`
 
 ## References
 

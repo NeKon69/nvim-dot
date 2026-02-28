@@ -24,25 +24,28 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("nvim-tree") -- table
-require("nvim-tree").change_dir(p1)
-require("nvim-tree").change_root(p1, p2)
+require("nvim-tree").change_dir(name)
+require("nvim-tree").change_root(path, bufnr)
 require("nvim-tree").get_config()
 require("nvim-tree").init_root -- string
 require("nvim-tree").open_on_directory()
 require("nvim-tree").purge_all_state()
-require("nvim-tree").setup(p1)
+require("nvim-tree").setup(conf)
 require("nvim-tree").tab_enter()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("nvim-tree").change_root(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-tree").change_dir(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-tree").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("nvim-tree").get_config()`: setup entrypoint; call once and keep opts explicit.
-- `require("nvim-tree").open_on_directory()`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("nvim-tree").purge_all_state()`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-tree").tab_enter()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help nvim-tree`, the local README, and the GitHub README listed below.
+
+- `require("nvim-tree").change_root(path, bufnr)`
+- `require("nvim-tree").change_dir(name)`
+- `require("nvim-tree").setup(conf)`
+- `require("nvim-tree").get_config()`
+- `require("nvim-tree").open_on_directory()`
+- `require("nvim-tree").purge_all_state()`
+- `require("nvim-tree").tab_enter()`
 
 ## References
 

@@ -13,14 +13,17 @@ _No new user commands detected from runtime diff._
 require("tsht") -- table
 require("tsht").config -- table
 require("tsht").config.hint_keys -- table
-require("tsht").move(p1)
-require("tsht").nodes(p1)
+require("tsht").move(opts)
+require("tsht").nodes(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("tsht").move(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("tsht").nodes(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help tsht`, the local README, and the GitHub README listed below.
+
+- `require("tsht").move(opts)`
+- `require("tsht").nodes(opts)`
 
 ## References
 

@@ -12,23 +12,26 @@ _No new user commands detected from runtime diff._
 ```lua
 require("lualine") -- table
 require("lualine").get_config()
-require("lualine").hide(p1)
-require("lualine").refresh(p1)
-require("lualine").setup(p1)
-require("lualine").statusline(p1)
+require("lualine").hide(opts)
+require("lualine").refresh(opts)
+require("lualine").setup(user_config)
+require("lualine").statusline(focused)
 require("lualine").tabline()
-require("lualine").winbar(p1)
+require("lualine").winbar(focused)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lualine").hide(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lualine").refresh(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lualine").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("lualine").statusline(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lualine").winbar(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lualine").get_config()`: setup entrypoint; call once and keep opts explicit.
-- `require("lualine").tabline()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lualine`, the local README, and the GitHub README listed below.
+
+- `require("lualine").hide(opts)`
+- `require("lualine").refresh(opts)`
+- `require("lualine").setup(user_config)`
+- `require("lualine").statusline(focused)`
+- `require("lualine").winbar(focused)`
+- `require("lualine").get_config()`
+- `require("lualine").tabline()`
 
 ## References
 

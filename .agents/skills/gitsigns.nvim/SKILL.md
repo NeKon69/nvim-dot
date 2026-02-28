@@ -13,14 +13,17 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("gitsigns") -- table
-require("gitsigns").setup(p1)
-require("gitsigns").statuscolumn(p1, p2)
+require("gitsigns").setup(cfg)
+require("gitsigns").statuscolumn(bufnr, lnum)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("gitsigns").statuscolumn(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("gitsigns").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help gitsigns`, the local README, and the GitHub README listed below.
+
+- `require("gitsigns").statuscolumn(bufnr, lnum)`
+- `require("gitsigns").setup(cfg)`
 
 ## References
 

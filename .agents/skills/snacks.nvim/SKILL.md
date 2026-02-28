@@ -14,13 +14,16 @@ require("snacks") -- table
 require("snacks").config -- table
 require("snacks").did_setup -- boolean
 require("snacks").did_setup_after_vim_enter -- boolean
-require("snacks").setup(p1)
+require("snacks").setup(opts)
 require("snacks").version -- string
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("snacks").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help snacks`, the local README, and the GitHub README listed below.
+
+- `require("snacks").setup(opts)`
 
 ## References
 

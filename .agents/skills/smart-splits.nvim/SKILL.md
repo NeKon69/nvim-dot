@@ -35,7 +35,7 @@ require("smart-splits").resize_down(...)
 require("smart-splits").resize_left(...)
 require("smart-splits").resize_right(...)
 require("smart-splits").resize_up(...)
-require("smart-splits").setup(p1)
+require("smart-splits").setup(config)
 require("smart-splits").swap_buf_down(...)
 require("smart-splits").swap_buf_left(...)
 require("smart-splits").swap_buf_right(...)
@@ -44,14 +44,17 @@ require("smart-splits").swap_buf_up(...)
 
 ## Harder Calls (quick notes)
 
-- `require("smart-splits").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("smart-splits").move_cursor_down(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").move_cursor_left(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").move_cursor_previous(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").move_cursor_right(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").move_cursor_up(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").resize_down(...)`: argument contract may be non-obvious; check :help/README.
-- `require("smart-splits").resize_left(...)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help smart-splits`, the local README, and the GitHub README listed below.
+
+- `require("smart-splits").setup(config)`
+- `require("smart-splits").move_cursor_down(...)`
+- `require("smart-splits").move_cursor_left(...)`
+- `require("smart-splits").move_cursor_previous(...)`
+- `require("smart-splits").move_cursor_right(...)`
+- `require("smart-splits").move_cursor_up(...)`
+- `require("smart-splits").resize_down(...)`
+- `require("smart-splits").resize_left(...)`
 
 ## References
 

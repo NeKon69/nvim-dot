@@ -11,24 +11,27 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("toggleterm") -- table
-require("toggleterm").exec(p1, p2, p3, p4, p5, p6, p7, p8)
-require("toggleterm").exec_command(p1, p2)
-require("toggleterm").send_lines_to_terminal(p1, p2, p3)
-require("toggleterm").setup(p1)
-require("toggleterm").toggle(p1, p2, p3, p4, p5)
-require("toggleterm").toggle_all(p1)
-require("toggleterm").toggle_command(p1, p2)
+require("toggleterm").exec(cmd, num, size, dir, direction, name, go_back, open)
+require("toggleterm").exec_command(args, count)
+require("toggleterm").send_lines_to_terminal(selection_type, trim_spaces, cmd_data)
+require("toggleterm").setup(user_prefs)
+require("toggleterm").toggle(count, size, dir, direction, name)
+require("toggleterm").toggle_all(force)
+require("toggleterm").toggle_command(args, count)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("toggleterm").exec(p1, p2, p3, p4, p5, p6, p7, p8)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("toggleterm").toggle(p1, p2, p3, p4, p5)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("toggleterm").send_lines_to_terminal(p1, p2, p3)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("toggleterm").exec_command(p1, p2)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("toggleterm").toggle_command(p1, p2)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("toggleterm").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("toggleterm").toggle_all(p1)`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help toggleterm`, the local README, and the GitHub README listed below.
+
+- `require("toggleterm").exec(cmd, num, size, dir, direction, name, go_back, open)`
+- `require("toggleterm").toggle(count, size, dir, direction, name)`
+- `require("toggleterm").send_lines_to_terminal(selection_type, trim_spaces, cmd_data)`
+- `require("toggleterm").exec_command(args, count)`
+- `require("toggleterm").toggle_command(args, count)`
+- `require("toggleterm").setup(user_prefs)`
+- `require("toggleterm").toggle_all(force)`
 
 ## References
 

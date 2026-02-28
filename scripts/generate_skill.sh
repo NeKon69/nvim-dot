@@ -14,13 +14,11 @@ Options:
   --skill-name <name>  Output folder name (default: derived from module)
   --depth <n>          Recursive depth for API table walk (default: 4)
   --max-items <n>      Max listed API entries (default: 200)
-  --out-root <path>    Skills root directory (default: ./skills)
-  --mirror-agents      Also write to ./.agents/skills/<skill-name>/SKILL.md
   --help               Show this help
 
 Examples:
   scripts/generate_skill.sh --plugin nvim-telescope/telescope.nvim --module telescope
-  scripts/generate_skill.sh --plugin ThePrimeagen/99 --module 99 --skill-name 99 --mirror-agents
+  scripts/generate_skill.sh --plugin ThePrimeagen/99 --module 99 --skill-name 99
 EOF
 }
 
@@ -29,8 +27,6 @@ MODULE=""
 SKILL_NAME=""
 DEPTH="4"
 MAX_ITEMS="200"
-OUT_ROOT="./skills"
-MIRROR_AGENTS="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -53,14 +49,6 @@ while [[ $# -gt 0 ]]; do
     --max-items)
       MAX_ITEMS="${2:-}"
       shift 2
-      ;;
-    --out-root)
-      OUT_ROOT="${2:-}"
-      shift 2
-      ;;
-    --mirror-agents)
-      MIRROR_AGENTS="1"
-      shift
       ;;
     --help|-h)
       usage
@@ -92,14 +80,10 @@ fi
 
 ROOT_DIR="$(pwd)"
 PLUGIN_REPO="$(printf '%s' "$PLUGIN" | awk -F'/' '{print $NF}')"
-OUT_DIR="${OUT_ROOT%/}/${SKILL_NAME}"
+OUT_DIR=".agents/skills/${SKILL_NAME}"
 OUT_FILE="${OUT_DIR}/SKILL.md"
-AGENTS_OUT_FILE=".agents/skills/${SKILL_NAME}/SKILL.md"
 
 mkdir -p "$OUT_DIR"
-if [[ "$MIRROR_AGENTS" == "1" ]]; then
-  mkdir -p ".agents/skills/${SKILL_NAME}"
-fi
 
 TMP_LUA="$(mktemp --suffix=.lua)"
 TMP_INIT="$(mktemp --suffix=.lua)"
@@ -165,8 +149,39 @@ local function command_belongs_to_plugin(cmd_name, plugin_repo_name)
   return out:find(needle, 1, true) ~= nil
 end
 
-local function param_sig(fn)
-  local ok, info = pcall(debug.getinfo, fn, "u")
+local function fallback_param_name(fn_path, idx)
+  if fn_path:match("setup$") or fn_path:match("config$") or fn_path:match("init$") then
+    if idx == 1 then
+      return "opts"
+    end
+    return ("arg%d"):format(idx)
+  end
+
+  if fn_path:match("open$") or fn_path:match("toggle$") or fn_path:match("show$") then
+    if idx == 1 then
+      return "target"
+    end
+    if idx == 2 then
+      return "opts"
+    end
+    return ("arg%d"):format(idx)
+  end
+
+  if fn_path:match("run$") or fn_path:match("exec$") or fn_path:match("request$") then
+    if idx == 1 then
+      return "opts"
+    end
+    if idx == 2 then
+      return "cb"
+    end
+    return ("arg%d"):format(idx)
+  end
+
+  return ("arg%d"):format(idx)
+end
+
+local function param_sig(fn, fn_path)
+  local ok, info = pcall(debug.getinfo, fn, "uS")
   if not ok or not info then
     return "(...)"
   end
@@ -174,7 +189,14 @@ local function param_sig(fn)
   if type(info.nparams) == "number" then
     local params = {}
     for i = 1, info.nparams do
-      table.insert(params, ("p%d"):format(i))
+      local name
+      if info.what == "Lua" then
+        local ok_local, param_name = pcall(debug.getlocal, fn, i)
+        if ok_local and type(param_name) == "string" and param_name ~= "" and param_name ~= "(*temporary)" then
+          name = param_name
+        end
+      end
+      table.insert(params, name or fallback_param_name(fn_path, i))
     end
     if info.isvararg then
       table.insert(params, "...")
@@ -210,7 +232,7 @@ local function walk(value, path, level)
 
   local t = type(value)
   if t == "function" then
-    local sig = param_sig(value)
+    local sig = param_sig(value, path)
     local ok, info = pcall(debug.getinfo, value, "u")
     local nparams = (ok and info and type(info.nparams) == "number") and info.nparams or -1
     push_item("function", path, sig, nparams)
@@ -278,19 +300,6 @@ local repo = plugin_repo
 local local_readme = vim.fn.stdpath("data") .. "/lazy/" .. repo .. "/README.md"
 local github_readme = "https://github.com/" .. plugin .. "/blob/master/README.md"
 
-local function hard_comment(name)
-  if name:match("setup") or name:match("config") or name:match("init") then
-    return "setup entrypoint; call once and keep opts explicit."
-  end
-  if name:match("open") or name:match("toggle") or name:match("show") then
-    return "UI/state entrypoint; verify window/buffer context before calling."
-  end
-  if name:match("run") or name:match("exec") or name:match("request") then
-    return "side-effecting call; validate inputs and error paths."
-  end
-  return "argument contract may be non-obvious; check :help/README."
-end
-
 local hard_funcs = {}
 for _, item in ipairs(api_items) do
   if item.kind == "function" then
@@ -340,13 +349,16 @@ table.insert(lines, "```")
 table.insert(lines, "")
 table.insert(lines, "## Harder Calls (quick notes)")
 table.insert(lines, "")
+table.insert(lines, "These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.")
+table.insert(lines, "Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help " .. module_name .. "`, the local README, and the GitHub README listed below.")
+table.insert(lines, "")
 local hard_limit = math.min(8, #hard_funcs)
 if hard_limit == 0 then
   table.insert(lines, "_No function exports detected._")
 else
   for i = 1, hard_limit do
     local f = hard_funcs[i]
-    table.insert(lines, "- `" .. f.name .. f.sig .. "`: " .. hard_comment(f.name))
+    table.insert(lines, "- `" .. f.name .. f.sig .. "`")
   end
 end
 
@@ -402,11 +414,4 @@ if [[ ! -f "$TMP_OK" || ! -f "$OUT_FILE" ]]; then
   exit 1
 fi
 
-if [[ "$MIRROR_AGENTS" == "1" ]]; then
-  cp "$OUT_FILE" "$AGENTS_OUT_FILE"
-fi
-
 echo "Generated: $OUT_FILE"
-if [[ "$MIRROR_AGENTS" == "1" ]]; then
-  echo "Mirrored: $AGENTS_OUT_FILE"
-fi

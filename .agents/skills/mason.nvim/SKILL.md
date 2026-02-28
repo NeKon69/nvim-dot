@@ -12,12 +12,15 @@ _No new user commands detected from runtime diff._
 ```lua
 require("mason") -- table
 require("mason").has_setup -- boolean
-require("mason").setup(p1)
+require("mason").setup(config)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("mason").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help mason`, the local README, and the GitHub README listed below.
+
+- `require("mason").setup(config)`
 
 ## References
 

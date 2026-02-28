@@ -11,10 +11,10 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("lint") -- table
-require("lint")._resolve_linter_by_ft(p1)
-require("lint").get_namespace(p1)
-require("lint").get_running(p1)
-require("lint").lint(p1, p2)
+require("lint")._resolve_linter_by_ft(ft)
+require("lint").get_namespace(name)
+require("lint").get_running(bufnr)
+require("lint").lint(linter, opts)
 require("lint").linters -- table
 require("lint").linters_by_ft -- table
 require("lint").linters_by_ft.clojure -- table
@@ -37,16 +37,19 @@ require("lint").linters_by_ft.terraform -- table
 require("lint").linters_by_ft.terraform.1 -- string
 require("lint").linters_by_ft.text -- table
 require("lint").linters_by_ft.text.1 -- string
-require("lint").try_lint(p1, p2)
+require("lint").try_lint(names, opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lint").lint(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("lint").try_lint(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("lint")._resolve_linter_by_ft(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lint").get_namespace(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lint").get_running(p1)`: side-effecting call; validate inputs and error paths.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lint`, the local README, and the GitHub README listed below.
+
+- `require("lint").lint(linter, opts)`
+- `require("lint").try_lint(names, opts)`
+- `require("lint")._resolve_linter_by_ft(ft)`
+- `require("lint").get_namespace(name)`
+- `require("lint").get_running(bufnr)`
 
 ## References
 

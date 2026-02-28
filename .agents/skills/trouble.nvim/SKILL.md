@@ -11,12 +11,15 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("trouble") -- table
-require("trouble").setup(p1)
+require("trouble").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("trouble").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help trouble`, the local README, and the GitHub README listed below.
+
+- `require("trouble").setup(opts)`
 
 ## References
 

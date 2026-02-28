@@ -18,24 +18,27 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("lazygit") -- table
-require("lazygit").lazygit(p1)
+require("lazygit").lazygit(path)
 require("lazygit").lazygitconfig()
 require("lazygit").lazygitcurrentfile()
-require("lazygit").lazygitfilter(p1, p2)
+require("lazygit").lazygitfilter(path, git_root)
 require("lazygit").lazygitfiltercurrentfile()
-require("lazygit").lazygitlog(p1)
+require("lazygit").lazygitlog(path)
 require("lazygit").project_root_dir()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lazygit").lazygitfilter(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("lazygit").lazygit(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lazygit").lazygitlog(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lazygit").lazygitconfig()`: setup entrypoint; call once and keep opts explicit.
-- `require("lazygit").lazygitcurrentfile()`: argument contract may be non-obvious; check :help/README.
-- `require("lazygit").lazygitfiltercurrentfile()`: argument contract may be non-obvious; check :help/README.
-- `require("lazygit").project_root_dir()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lazygit`, the local README, and the GitHub README listed below.
+
+- `require("lazygit").lazygitfilter(path, git_root)`
+- `require("lazygit").lazygit(path)`
+- `require("lazygit").lazygitlog(path)`
+- `require("lazygit").lazygitconfig()`
+- `require("lazygit").lazygitcurrentfile()`
+- `require("lazygit").lazygitfiltercurrentfile()`
+- `require("lazygit").project_root_dir()`
 
 ## References
 

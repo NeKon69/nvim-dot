@@ -11,27 +11,30 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("octo") -- table
-require("octo").configure_octo_buffer(p1)
-require("octo").create_buffer(p1, p2, p3, p4, p5)
-require("octo").load(p1, p2, p3, p4, p5)
-require("octo").load_buffer(p1)
+require("octo").configure_octo_buffer(bufnr)
+require("octo").create_buffer(kind, obj, repo, create, hostname)
+require("octo").load(repo, kind, id, hostname, cb)
+require("octo").load_buffer(opts)
 require("octo").on_cursor_hold()
 require("octo").render_signs()
 require("octo").save_buffer()
-require("octo").setup(p1)
+require("octo").setup(user_config)
 require("octo").update_layout_for_current_file()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("octo").create_buffer(p1, p2, p3, p4, p5)`: argument contract may be non-obvious; check :help/README.
-- `require("octo").load(p1, p2, p3, p4, p5)`: argument contract may be non-obvious; check :help/README.
-- `require("octo").configure_octo_buffer(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("octo").load_buffer(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("octo").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("octo").on_cursor_hold()`: argument contract may be non-obvious; check :help/README.
-- `require("octo").render_signs()`: argument contract may be non-obvious; check :help/README.
-- `require("octo").save_buffer()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help octo`, the local README, and the GitHub README listed below.
+
+- `require("octo").create_buffer(kind, obj, repo, create, hostname)`
+- `require("octo").load(repo, kind, id, hostname, cb)`
+- `require("octo").configure_octo_buffer(bufnr)`
+- `require("octo").load_buffer(opts)`
+- `require("octo").setup(user_config)`
+- `require("octo").on_cursor_hold()`
+- `require("octo").render_signs()`
+- `require("octo").save_buffer()`
 
 ## References
 

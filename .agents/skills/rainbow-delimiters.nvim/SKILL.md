@@ -11,24 +11,27 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("rainbow-delimiters") -- table
-require("rainbow-delimiters").disable(p1)
-require("rainbow-delimiters").enable(p1)
-require("rainbow-delimiters").hlgroup_at(p1)
-require("rainbow-delimiters").is_enabled(p1)
+require("rainbow-delimiters").disable(bufnr)
+require("rainbow-delimiters").enable(bufnr)
+require("rainbow-delimiters").hlgroup_at(i)
+require("rainbow-delimiters").is_enabled(bufnr)
 require("rainbow-delimiters").strategy -- table
 require("rainbow-delimiters").strategy.global -- string
 require("rainbow-delimiters").strategy.local -- string
 require("rainbow-delimiters").strategy.noop -- string
-require("rainbow-delimiters").toggle(p1)
+require("rainbow-delimiters").toggle(bufnr)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("rainbow-delimiters").disable(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("rainbow-delimiters").enable(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("rainbow-delimiters").hlgroup_at(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("rainbow-delimiters").is_enabled(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("rainbow-delimiters").toggle(p1)`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help rainbow-delimiters`, the local README, and the GitHub README listed below.
+
+- `require("rainbow-delimiters").disable(bufnr)`
+- `require("rainbow-delimiters").enable(bufnr)`
+- `require("rainbow-delimiters").hlgroup_at(i)`
+- `require("rainbow-delimiters").is_enabled(bufnr)`
+- `require("rainbow-delimiters").toggle(bufnr)`
 
 ## References
 

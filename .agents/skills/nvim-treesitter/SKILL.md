@@ -29,16 +29,19 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("nvim-treesitter") -- table
-require("nvim-treesitter").define_modules(p1)
+require("nvim-treesitter").define_modules(mod_defs)
 require("nvim-treesitter").setup()
-require("nvim-treesitter").statusline(p1)
+require("nvim-treesitter").statusline(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("nvim-treesitter").define_modules(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-treesitter").statusline(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-treesitter").setup()`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help nvim-treesitter`, the local README, and the GitHub README listed below.
+
+- `require("nvim-treesitter").define_modules(mod_defs)`
+- `require("nvim-treesitter").statusline(opts)`
+- `require("nvim-treesitter").setup()`
 
 ## References
 

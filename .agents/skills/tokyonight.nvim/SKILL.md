@@ -11,15 +11,18 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("tokyonight") -- table
-require("tokyonight").load(p1)
-require("tokyonight").setup(p1)
+require("tokyonight").load(opts)
+require("tokyonight").setup(options)
 require("tokyonight").styles -- table
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("tokyonight").load(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("tokyonight").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help tokyonight`, the local README, and the GitHub README listed below.
+
+- `require("tokyonight").load(opts)`
+- `require("tokyonight").setup(options)`
 
 ## References
 

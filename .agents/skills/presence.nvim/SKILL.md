@@ -11,59 +11,59 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("presence") -- table
-require("presence").authorize(p1, p2)
+require("presence").authorize(self, on_done)
 require("presence").auto_update -- number
 require("presence").blacklist -- table
 require("presence").buttons -- number
-require("presence").call_remote_method(p1, p2, p3, p4)
-require("presence").call_remote_nvim_instance(p1, p2, p3)
-require("presence").cancel(p1)
-require("presence").check_blacklist(p1, p2, p3, p4)
-require("presence").check_discord_socket(p1, p2)
-require("presence").check_dup_options(p1, p2)
+require("presence").call_remote_method(self, socket, name, args)
+require("presence").call_remote_nvim_instance(self, socket, command)
+require("presence").cancel(self)
+require("presence").check_blacklist(self, buffer, parent_dirpath, project_dirpath)
+require("presence").check_discord_socket(self, path)
+require("presence").check_dup_options(self, option)
 require("presence").client_id -- string
-require("presence").coalesce_option(p1)
-require("presence").connect(p1, p2)
+require("presence").coalesce_option(value)
+require("presence").connect(self, on_done)
 require("presence").debounce_timeout -- number
 require("presence").discord -- table
-require("presence").discord.authorize(p1, p2)
-require("presence").discord.call(p1, p2, p3, p4)
+require("presence").discord.authorize(self, on_authorize)
+require("presence").discord.call(self, opcode, payload, on_response)
 require("presence").discord.client_id -- string
-require("presence").discord.connect(p1, p2)
-require("presence").discord.decode_json(p1, p2)
-require("presence").discord.disconnect(p1, p2)
-require("presence").discord.encode_json(p1, p2)
+require("presence").discord.connect(self, on_connect)
+require("presence").discord.decode_json(t, on_done)
+require("presence").discord.disconnect(self, on_close)
+require("presence").discord.encode_json(t, on_done)
 require("presence").discord.events -- table
 require("presence").discord.events.ERROR -- string
 require("presence").discord.events.READY -- string
-require("presence").discord.generate_uuid(p1)
-require("presence").discord.init(p1, p2)
+require("presence").discord.generate_uuid(seed)
+require("presence").discord.init(self, options)
 require("presence").discord.ipc_socket -- string
-require("presence").discord.is_connected(p1)
+require("presence").discord.is_connected(self)
 require("presence").discord.log -- table
 require("presence").discord.log.codes -- table
 require("presence").discord.log.codes.debug -- number
 require("presence").discord.log.codes.error -- number
 require("presence").discord.log.codes.info -- number
 require("presence").discord.log.codes.warn -- number
-require("presence").discord.log.debug(p1, p2)
-require("presence").discord.log.error(p1, p2)
-require("presence").discord.log.info(p1, p2)
-require("presence").discord.log.init(p1, p2)
+require("presence").discord.log.debug(self, message)
+require("presence").discord.log.error(self, message)
+require("presence").discord.log.info(self, message)
+require("presence").discord.log.init(self, options)
 require("presence").discord.log.levels -- table
 require("presence").discord.log.levels.1 -- table
 require("presence").discord.log.levels.2 -- table
 require("presence").discord.log.levels.3 -- table
 require("presence").discord.log.levels.4 -- table
-require("presence").discord.log.warn(p1, p2)
+require("presence").discord.log.warn(self, message)
 require("presence").discord.opcodes -- table
 require("presence").discord.opcodes.auth -- number
 require("presence").discord.opcodes.closed -- number
 require("presence").discord.opcodes.frame -- number
 require("presence").discord.pipe -- userdata
-require("presence").discord.read_message(p1, p2, p3, p4, p5)
-require("presence").discord.set_activity(p1, p2, p3)
-require("presence").discord_event(p1)
+require("presence").discord.read_message(self, nonce, on_response, err, chunk)
+require("presence").discord.set_activity(self, activity, on_response)
+require("presence").discord_event(on_ready)
 require("presence").editing_text -- string
 require("presence").enable_line_number -- number
 require("presence").file_assets -- table
@@ -214,14 +214,17 @@ require("presence").file_assets..tmux.conf.1 -- string
 
 ## Harder Calls (quick notes)
 
-- `require("presence").discord.read_message(p1, p2, p3, p4, p5)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").call_remote_method(p1, p2, p3, p4)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").check_blacklist(p1, p2, p3, p4)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").discord.call(p1, p2, p3, p4)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").call_remote_nvim_instance(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").discord.set_activity(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").authorize(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("presence").check_discord_socket(p1, p2)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help presence`, the local README, and the GitHub README listed below.
+
+- `require("presence").discord.read_message(self, nonce, on_response, err, chunk)`
+- `require("presence").call_remote_method(self, socket, name, args)`
+- `require("presence").check_blacklist(self, buffer, parent_dirpath, project_dirpath)`
+- `require("presence").discord.call(self, opcode, payload, on_response)`
+- `require("presence").call_remote_nvim_instance(self, socket, command)`
+- `require("presence").discord.set_activity(self, activity, on_response)`
+- `require("presence").authorize(self, on_done)`
+- `require("presence").check_discord_socket(self, path)`
 
 ## References
 

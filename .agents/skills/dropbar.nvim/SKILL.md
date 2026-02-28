@@ -11,12 +11,15 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("dropbar") -- table
-require("dropbar").setup(p1)
+require("dropbar").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("dropbar").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help dropbar`, the local README, and the GitHub README listed below.
+
+- `require("dropbar").setup(opts)`
 
 ## References
 

@@ -15,17 +15,20 @@ Use it as a fast API/command index before reading source.
 require("telescope") -- table
 require("telescope").__format_setup_keys()
 require("telescope").extensions -- table
-require("telescope").load_extension(p1)
-require("telescope").register_extension(p1)
-require("telescope").setup(p1)
+require("telescope").load_extension(name)
+require("telescope").register_extension(mod)
+require("telescope").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("telescope").load_extension(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("telescope").register_extension(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("telescope").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("telescope").__format_setup_keys()`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help telescope`, the local README, and the GitHub README listed below.
+
+- `require("telescope").load_extension(name)`
+- `require("telescope").register_extension(mod)`
+- `require("telescope").setup(opts)`
+- `require("telescope").__format_setup_keys()`
 
 ## References
 

@@ -11,29 +11,32 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("nvim-surround") -- table
-require("nvim-surround").buffer_setup(p1)
+require("nvim-surround").buffer_setup(buffer_opts)
 require("nvim-surround").change_callback()
-require("nvim-surround").change_surround(p1)
+require("nvim-surround").change_surround(args)
 require("nvim-surround").delete_callback()
-require("nvim-surround").delete_surround(p1)
-require("nvim-surround").insert_surround(p1)
-require("nvim-surround").normal_callback(p1)
-require("nvim-surround").normal_surround(p1)
+require("nvim-surround").delete_surround(args)
+require("nvim-surround").insert_surround(args)
+require("nvim-surround").normal_callback(mode)
+require("nvim-surround").normal_surround(args)
 require("nvim-surround").pending_surround -- boolean
-require("nvim-surround").setup(p1)
-require("nvim-surround").visual_surround(p1)
+require("nvim-surround").setup(user_opts)
+require("nvim-surround").visual_surround(args)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("nvim-surround").buffer_setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("nvim-surround").change_surround(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-surround").delete_surround(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-surround").insert_surround(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-surround").normal_callback(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-surround").normal_surround(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("nvim-surround").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("nvim-surround").visual_surround(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help nvim-surround`, the local README, and the GitHub README listed below.
+
+- `require("nvim-surround").buffer_setup(buffer_opts)`
+- `require("nvim-surround").change_surround(args)`
+- `require("nvim-surround").delete_surround(args)`
+- `require("nvim-surround").insert_surround(args)`
+- `require("nvim-surround").normal_callback(mode)`
+- `require("nvim-surround").normal_surround(args)`
+- `require("nvim-surround").setup(user_opts)`
+- `require("nvim-surround").visual_surround(args)`
 
 ## References
 

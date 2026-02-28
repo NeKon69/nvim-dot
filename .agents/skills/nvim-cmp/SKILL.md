@@ -42,42 +42,42 @@ require("cmp").complete(...)
 require("cmp").complete_common_string(...)
 require("cmp").config -- table
 require("cmp").config.compare -- table
-require("cmp").config.compare.exact(p1, p2)
-require("cmp").config.compare.kind(p1, p2)
-require("cmp").config.compare.length(p1, p2)
+require("cmp").config.compare.exact(entry1, entry2)
+require("cmp").config.compare.kind(entry1, entry2)
+require("cmp").config.compare.length(entry1, entry2)
 require("cmp").config.compare.locality -- table
 require("cmp").config.compare.locality.lines_cache -- table
 require("cmp").config.compare.locality.lines_count -- number
 require("cmp").config.compare.locality.locality_map -- table
-require("cmp").config.compare.locality.update(p1)
-require("cmp").config.compare.offset(p1, p2)
-require("cmp").config.compare.order(p1, p2)
+require("cmp").config.compare.locality.update(self)
+require("cmp").config.compare.offset(entry1, entry2)
+require("cmp").config.compare.order(entry1, entry2)
 require("cmp").config.compare.recently_used -- table
-require("cmp").config.compare.recently_used.add_entry(p1, p2)
+require("cmp").config.compare.recently_used.add_entry(self, e)
 require("cmp").config.compare.recently_used.records -- table
 require("cmp").config.compare.scopes -- table
 require("cmp").config.compare.scopes.scopes_map -- table
-require("cmp").config.compare.scopes.update(p1)
-require("cmp").config.compare.score(p1, p2)
-require("cmp").config.compare.sort_text(p1, p2)
+require("cmp").config.compare.scopes.update(self)
+require("cmp").config.compare.score(entry1, entry2)
+require("cmp").config.compare.sort_text(entry1, entry2)
 require("cmp").config.disable -- userdata
 require("cmp").config.mapping -- table
 require("cmp").config.mapping.abort()
 require("cmp").config.mapping.close()
 require("cmp").config.mapping.close_docs()
-require("cmp").config.mapping.complete(p1)
+require("cmp").config.mapping.complete(option)
 require("cmp").config.mapping.complete_common_string()
-require("cmp").config.mapping.confirm(p1)
+require("cmp").config.mapping.confirm(option)
 require("cmp").config.mapping.open_docs()
 require("cmp").config.mapping.preset -- table
-require("cmp").config.mapping.preset.cmdline(p1)
-require("cmp").config.mapping.preset.insert(p1)
-require("cmp").config.mapping.scroll_docs(p1)
-require("cmp").config.mapping.select_next_item(p1)
-require("cmp").config.mapping.select_prev_item(p1)
+require("cmp").config.mapping.preset.cmdline(override)
+require("cmp").config.mapping.preset.insert(override)
+require("cmp").config.mapping.scroll_docs(delta)
+require("cmp").config.mapping.select_next_item(option)
+require("cmp").config.mapping.select_prev_item(option)
 require("cmp").config.sources(...)
 require("cmp").config.window -- table
-require("cmp").config.window.bordered(p1)
+require("cmp").config.window.bordered(opts)
 require("cmp").config.window.get_border()
 require("cmp").confirm(...)
 require("cmp").core -- table
@@ -138,7 +138,7 @@ require("cmp").core.view.native_entries_view.event -- table
 require("cmp").core.view.native_entries_view.items -- table
 require("cmp").core.view.native_entries_view.offset -- number
 require("cmp").core.view.native_entries_view.preselect_index -- number
-require("cmp").core.view.resolve_dedup(p1)
+require("cmp").core.view.resolve_dedup(callback)
 require("cmp").core.view.wildmenu_entries_view -- table
 require("cmp").core.view.wildmenu_entries_view.active -- boolean
 require("cmp").core.view.wildmenu_entries_view.entries -- table
@@ -216,14 +216,17 @@ require("cmp").lsp.InsertTextFormat -- table
 
 ## Harder Calls (quick notes)
 
-- `require("cmp").config.compare.exact(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.kind(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.length(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.offset(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.order(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.recently_used.add_entry(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.score(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("cmp").config.compare.sort_text(p1, p2)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help cmp`, the local README, and the GitHub README listed below.
+
+- `require("cmp").config.compare.exact(entry1, entry2)`
+- `require("cmp").config.compare.kind(entry1, entry2)`
+- `require("cmp").config.compare.length(entry1, entry2)`
+- `require("cmp").config.compare.offset(entry1, entry2)`
+- `require("cmp").config.compare.order(entry1, entry2)`
+- `require("cmp").config.compare.recently_used.add_entry(self, e)`
+- `require("cmp").config.compare.score(entry1, entry2)`
+- `require("cmp").config.compare.sort_text(entry1, entry2)`
 
 ## References
 

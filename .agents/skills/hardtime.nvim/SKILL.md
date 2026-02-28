@@ -14,16 +14,19 @@ require("hardtime") -- table
 require("hardtime").disable()
 require("hardtime").enable()
 require("hardtime").is_plugin_enabled -- boolean
-require("hardtime").setup(p1)
+require("hardtime").setup(user_config)
 require("hardtime").toggle()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("hardtime").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("hardtime").disable()`: argument contract may be non-obvious; check :help/README.
-- `require("hardtime").enable()`: argument contract may be non-obvious; check :help/README.
-- `require("hardtime").toggle()`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help hardtime`, the local README, and the GitHub README listed below.
+
+- `require("hardtime").setup(user_config)`
+- `require("hardtime").disable()`
+- `require("hardtime").enable()`
+- `require("hardtime").toggle()`
 
 ## References
 

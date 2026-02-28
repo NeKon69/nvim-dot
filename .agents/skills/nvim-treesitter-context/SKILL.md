@@ -14,24 +14,27 @@ Use it as a fast API/command index before reading source.
 ```lua
 require("treesitter-context") -- table
 require("treesitter-context").config -- table
-require("treesitter-context").config.update(p1)
+require("treesitter-context").config.update(cfg)
 require("treesitter-context").disable()
 require("treesitter-context").enable()
 require("treesitter-context").enabled()
-require("treesitter-context").go_to_context(p1)
-require("treesitter-context").setup(p1)
+require("treesitter-context").go_to_context(depth)
+require("treesitter-context").setup(options)
 require("treesitter-context").toggle()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("treesitter-context").config.update(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("treesitter-context").go_to_context(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("treesitter-context").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("treesitter-context").disable()`: argument contract may be non-obvious; check :help/README.
-- `require("treesitter-context").enable()`: argument contract may be non-obvious; check :help/README.
-- `require("treesitter-context").enabled()`: argument contract may be non-obvious; check :help/README.
-- `require("treesitter-context").toggle()`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help treesitter-context`, the local README, and the GitHub README listed below.
+
+- `require("treesitter-context").config.update(cfg)`
+- `require("treesitter-context").go_to_context(depth)`
+- `require("treesitter-context").setup(options)`
+- `require("treesitter-context").disable()`
+- `require("treesitter-context").enable()`
+- `require("treesitter-context").enabled()`
+- `require("treesitter-context").toggle()`
 
 ## References
 

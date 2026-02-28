@@ -7,36 +7,30 @@ Usage:
   scripts/generate_all_skills.sh [options]
 
 Options:
-  --out-root <path>    Skills root (default: ./skills)
   --depth <n>          API recursion depth (default: 4)
   --max-items <n>      Max API items per skill (default: 200)
   --limit <n>          Generate at most N plugins (for testing)
   --only <plugin-id>   Generate only one plugin id (owner/repo)
-  --mirror-agents      Mirror outputs to ./.agents/skills
   --dry-run            Show what would be generated
   --help               Show this help
 
 Example:
-  scripts/generate_all_skills.sh --limit 5 --mirror-agents
+  scripts/generate_all_skills.sh --limit 5
 EOF
 }
 
-OUT_ROOT="./skills"
 DEPTH="4"
 MAX_ITEMS="200"
 LIMIT=""
 ONLY=""
-MIRROR_AGENTS="0"
 DRY_RUN="0"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --out-root) OUT_ROOT="${2:-}"; shift 2 ;;
     --depth) DEPTH="${2:-}"; shift 2 ;;
     --max-items) MAX_ITEMS="${2:-}"; shift 2 ;;
     --limit) LIMIT="${2:-}"; shift 2 ;;
     --only) ONLY="${2:-}"; shift 2 ;;
-    --mirror-agents) MIRROR_AGENTS="1"; shift ;;
     --dry-run) DRY_RUN="1"; shift ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
@@ -204,13 +198,9 @@ for plugin_id in "${all_plugins[@]}"; do
     --plugin "$plugin_id"
     --module "$module"
     --skill-name "$skill_name"
-    --out-root "$OUT_ROOT"
     --depth "$DEPTH"
     --max-items "$MAX_ITEMS"
   )
-  if [[ "$MIRROR_AGENTS" == "1" ]]; then
-    cmd+=( --mirror-agents )
-  fi
 
   echo "gen: plugin=$plugin_id module=$module skill=$skill_name"
   if [[ "$DRY_RUN" == "1" ]]; then

@@ -18,42 +18,45 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("overseer") -- table
-require("overseer").add_template_hook(p1, p2)
+require("overseer").add_template_hook(opts, hook)
 require("overseer").builtin -- table
 require("overseer").builtin.jobstart(...)
-require("overseer").builtin.system(p1, p2, p3)
-require("overseer").clear_task_cache(p1)
+require("overseer").builtin.system(arg1, arg2, arg3)
+require("overseer").clear_task_cache(opts)
 require("overseer").close()
-require("overseer").create_task_output_view(p1, p2)
-require("overseer").enable_dap(p1)
+require("overseer").create_task_output_view(winid, opts)
+require("overseer").enable_dap(enabled)
 require("overseer").get_all_commands()
 require("overseer").get_all_highlights()
-require("overseer").list_tasks(p1)
-require("overseer").new_task(p1)
-require("overseer").open(p1)
-require("overseer").preload_task_cache(p1, p2)
+require("overseer").list_tasks(opts)
+require("overseer").new_task(opts)
+require("overseer").open(opts)
+require("overseer").preload_task_cache(opts, cb)
 require("overseer").private_setup()
-require("overseer").register_alias(p1, p2, p3)
-require("overseer").register_template(p1)
-require("overseer").remove_template_hook(p1, p2)
-require("overseer").run_action(p1, p2)
-require("overseer").run_task(p1, p2)
-require("overseer").run_template(p1, p2)
-require("overseer").setup(p1)
-require("overseer").toggle(p1)
-require("overseer").wrap_builtins(p1)
+require("overseer").register_alias(name, components, override)
+require("overseer").register_template(defn)
+require("overseer").remove_template_hook(opts, hook)
+require("overseer").run_action(task, name)
+require("overseer").run_task(opts, callback)
+require("overseer").run_template(opts, callback)
+require("overseer").setup(opts)
+require("overseer").toggle(opts)
+require("overseer").wrap_builtins(enabled)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("overseer").builtin.system(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").register_alias(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").add_template_hook(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").create_task_output_view(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").preload_task_cache(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").remove_template_hook(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("overseer").run_action(p1, p2)`: side-effecting call; validate inputs and error paths.
-- `require("overseer").run_task(p1, p2)`: side-effecting call; validate inputs and error paths.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help overseer`, the local README, and the GitHub README listed below.
+
+- `require("overseer").builtin.system(arg1, arg2, arg3)`
+- `require("overseer").register_alias(name, components, override)`
+- `require("overseer").add_template_hook(opts, hook)`
+- `require("overseer").create_task_output_view(winid, opts)`
+- `require("overseer").preload_task_cache(opts, cb)`
+- `require("overseer").remove_template_hook(opts, hook)`
+- `require("overseer").run_action(task, name)`
+- `require("overseer").run_task(opts, callback)`
 
 ## References
 

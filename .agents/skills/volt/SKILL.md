@@ -11,24 +11,27 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("volt") -- table
-require("volt").close(p1)
-require("volt").gen_data(p1)
-require("volt").mappings(p1)
-require("volt").redraw(p1, p2)
-require("volt").run(p1, p2)
-require("volt").set_empty_lines(p1, p2, p3)
-require("volt").toggle_func(p1, p2)
+require("volt").close(buf)
+require("volt").gen_data(data)
+require("volt").mappings(val)
+require("volt").redraw(buf, names)
+require("volt").run(buf, opts)
+require("volt").set_empty_lines(buf, n, w)
+require("volt").toggle_func(open_func, ui_state)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("volt").set_empty_lines(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("volt").redraw(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("volt").run(p1, p2)`: side-effecting call; validate inputs and error paths.
-- `require("volt").toggle_func(p1, p2)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("volt").close(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("volt").gen_data(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("volt").mappings(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help volt`, the local README, and the GitHub README listed below.
+
+- `require("volt").set_empty_lines(buf, n, w)`
+- `require("volt").redraw(buf, names)`
+- `require("volt").run(buf, opts)`
+- `require("volt").toggle_func(open_func, ui_state)`
+- `require("volt").close(buf)`
+- `require("volt").gen_data(data)`
+- `require("volt").mappings(val)`
 
 ## References
 

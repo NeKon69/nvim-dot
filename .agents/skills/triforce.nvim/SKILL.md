@@ -17,28 +17,31 @@ require("triforce").debug_fix_level()
 require("triforce").debug_languages()
 require("triforce").debug_xp()
 require("triforce").export_stats()
-require("triforce").export_stats_to_json(p1, p2)
-require("triforce").export_stats_to_md(p1)
+require("triforce").export_stats_to_json(file, indent)
+require("triforce").export_stats_to_md(file)
 require("triforce").get_stats()
-require("triforce").new_achievements(p1)
+require("triforce").new_achievements(achievements)
 require("triforce").open_config()
 require("triforce").reset_stats()
 require("triforce").save_stats()
-require("triforce").setup(p1)
-require("triforce").show_profile(p1)
+require("triforce").setup(opts)
+require("triforce").show_profile(tab)
 require("triforce").toggle_config()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("triforce").export_stats_to_json(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("triforce").export_stats_to_md(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("triforce").new_achievements(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("triforce").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("triforce").show_profile(p1)`: UI/state entrypoint; verify window/buffer context before calling.
-- `require("triforce").close_config()`: setup entrypoint; call once and keep opts explicit.
-- `require("triforce").debug_achievement()`: argument contract may be non-obvious; check :help/README.
-- `require("triforce").debug_fix_level()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help triforce`, the local README, and the GitHub README listed below.
+
+- `require("triforce").export_stats_to_json(file, indent)`
+- `require("triforce").export_stats_to_md(file)`
+- `require("triforce").new_achievements(achievements)`
+- `require("triforce").setup(opts)`
+- `require("triforce").show_profile(tab)`
+- `require("triforce").close_config()`
+- `require("triforce").debug_achievement()`
+- `require("triforce").debug_fix_level()`
 
 ## References
 

@@ -14,33 +14,36 @@ Use it as a fast API/command index before reading source.
 ```lua
 require("conform") -- table
 require("conform").default_format_opts -- table
-require("conform").format(p1, p2)
-require("conform").format_lines(p1, p2, p3, p4)
-require("conform").formatexpr(p1)
+require("conform").format(opts, callback)
+require("conform").format_lines(formatter_names, lines, opts, callback)
+require("conform").formatexpr(opts)
 require("conform").formatters -- table
 require("conform").formatters_by_ft -- table
-require("conform").get_formatter_config(p1, p2)
-require("conform").get_formatter_info(p1, p2)
+require("conform").get_formatter_config(formatter, bufnr)
+require("conform").get_formatter_info(formatter, bufnr)
 require("conform").list_all_formatters()
-require("conform").list_formatters(p1)
-require("conform").list_formatters_for_buffer(p1)
-require("conform").list_formatters_to_run(p1)
+require("conform").list_formatters(bufnr)
+require("conform").list_formatters_for_buffer(bufnr)
+require("conform").list_formatters_to_run(bufnr)
 require("conform").notify_no_formatters -- boolean
 require("conform").notify_on_error -- boolean
-require("conform").resolve_formatters(p1, p2, p3, p4)
-require("conform").setup(p1)
+require("conform").resolve_formatters(names, bufnr, warn_on_missing, stop_after_first)
+require("conform").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("conform").format_lines(p1, p2, p3, p4)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").resolve_formatters(p1, p2, p3, p4)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").format(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").get_formatter_config(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("conform").get_formatter_info(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").formatexpr(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").list_formatters(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("conform").list_formatters_for_buffer(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help conform`, the local README, and the GitHub README listed below.
+
+- `require("conform").format_lines(formatter_names, lines, opts, callback)`
+- `require("conform").resolve_formatters(names, bufnr, warn_on_missing, stop_after_first)`
+- `require("conform").format(opts, callback)`
+- `require("conform").get_formatter_config(formatter, bufnr)`
+- `require("conform").get_formatter_info(formatter, bufnr)`
+- `require("conform").formatexpr(opts)`
+- `require("conform").list_formatters(bufnr)`
+- `require("conform").list_formatters_for_buffer(bufnr)`
 
 ## References
 

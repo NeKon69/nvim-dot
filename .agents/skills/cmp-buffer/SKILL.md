@@ -16,6 +16,9 @@ require("cmp_buffer").buffers -- table
 
 ## Harder Calls (quick notes)
 
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help cmp_buffer`, the local README, and the GitHub README listed below.
+
 _No function exports detected._
 
 ## References

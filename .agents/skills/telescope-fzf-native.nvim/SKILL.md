@@ -12,21 +12,24 @@ _No new user commands detected from runtime diff._
 ```lua
 require("fzf_lib") -- table
 require("fzf_lib").allocate_slab()
-require("fzf_lib").free_pattern(p1)
-require("fzf_lib").free_slab(p1)
-require("fzf_lib").get_pos(p1, p2, p3)
-require("fzf_lib").get_score(p1, p2, p3)
-require("fzf_lib").parse_pattern(p1, p2, p3)
+require("fzf_lib").free_pattern(p)
+require("fzf_lib").free_slab(s)
+require("fzf_lib").get_pos(input, pattern_struct, slab)
+require("fzf_lib").get_score(input, pattern_struct, slab)
+require("fzf_lib").parse_pattern(pattern, case_mode, fuzzy)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("fzf_lib").get_pos(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("fzf_lib").get_score(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("fzf_lib").parse_pattern(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("fzf_lib").free_pattern(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("fzf_lib").free_slab(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("fzf_lib").allocate_slab()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help fzf_lib`, the local README, and the GitHub README listed below.
+
+- `require("fzf_lib").get_pos(input, pattern_struct, slab)`
+- `require("fzf_lib").get_score(input, pattern_struct, slab)`
+- `require("fzf_lib").parse_pattern(pattern, case_mode, fuzzy)`
+- `require("fzf_lib").free_pattern(p)`
+- `require("fzf_lib").free_slab(s)`
+- `require("fzf_lib").allocate_slab()`
 
 ## References
 

@@ -11,26 +11,29 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("git-conflict") -- table
-require("git-conflict").choose(p1)
-require("git-conflict").clear(p1)
-require("git-conflict").conflict_count(p1)
-require("git-conflict").conflicts_to_qf_items(p1)
+require("git-conflict").choose(side)
+require("git-conflict").clear(bufnr)
+require("git-conflict").conflict_count(bufnr)
+require("git-conflict").conflicts_to_qf_items(callback)
 require("git-conflict").debug_watchers()
-require("git-conflict").find_next(p1)
-require("git-conflict").find_prev(p1)
-require("git-conflict").setup(p1)
+require("git-conflict").find_next(side)
+require("git-conflict").find_prev(side)
+require("git-conflict").setup(user_config)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("git-conflict").choose(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").clear(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").conflict_count(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").conflicts_to_qf_items(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").find_next(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").find_prev(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("git-conflict").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("git-conflict").debug_watchers()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help git-conflict`, the local README, and the GitHub README listed below.
+
+- `require("git-conflict").choose(side)`
+- `require("git-conflict").clear(bufnr)`
+- `require("git-conflict").conflict_count(bufnr)`
+- `require("git-conflict").conflicts_to_qf_items(callback)`
+- `require("git-conflict").find_next(side)`
+- `require("git-conflict").find_prev(side)`
+- `require("git-conflict").setup(user_config)`
+- `require("git-conflict").debug_watchers()`
 
 ## References
 

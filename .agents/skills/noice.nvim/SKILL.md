@@ -12,24 +12,27 @@ _No new user commands detected from runtime diff._
 ```lua
 require("noice") -- table
 require("noice").api -- table
-require("noice").cmd(p1)
+require("noice").cmd(name)
 require("noice").deactivate()
 require("noice").disable()
 require("noice").enable()
-require("noice").notify(p1, p2, p3)
-require("noice").redirect(p1, p2)
-require("noice").setup(p1)
+require("noice").notify(msg, level, opts)
+require("noice").redirect(cmd, routes)
+require("noice").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("noice").notify(p1, p2, p3)`: argument contract may be non-obvious; check :help/README.
-- `require("noice").redirect(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("noice").cmd(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("noice").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("noice").deactivate()`: argument contract may be non-obvious; check :help/README.
-- `require("noice").disable()`: argument contract may be non-obvious; check :help/README.
-- `require("noice").enable()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help noice`, the local README, and the GitHub README listed below.
+
+- `require("noice").notify(msg, level, opts)`
+- `require("noice").redirect(cmd, routes)`
+- `require("noice").cmd(name)`
+- `require("noice").setup(opts)`
+- `require("noice").deactivate()`
+- `require("noice").disable()`
+- `require("noice").enable()`
 
 ## References
 

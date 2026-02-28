@@ -12,19 +12,22 @@ _No new user commands detected from runtime diff._
 ```lua
 require("which-key") -- table
 require("which-key")._queue -- table
-require("which-key").add(p1, p2)
+require("which-key").add(mappings, opts)
 require("which-key").did_setup -- boolean
-require("which-key").register(p1, p2)
-require("which-key").setup(p1)
-require("which-key").show(p1)
+require("which-key").register(mappings, opts)
+require("which-key").setup(opts)
+require("which-key").show(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("which-key").add(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("which-key").register(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("which-key").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("which-key").show(p1)`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help which-key`, the local README, and the GitHub README listed below.
+
+- `require("which-key").add(mappings, opts)`
+- `require("which-key").register(mappings, opts)`
+- `require("which-key").setup(opts)`
+- `require("which-key").show(opts)`
 
 ## References
 

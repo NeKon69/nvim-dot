@@ -14,17 +14,20 @@ require("codeium") -- table
 require("codeium").chat()
 require("codeium").disable()
 require("codeium").enable()
-require("codeium").setup(p1)
+require("codeium").setup(options)
 require("codeium").toggle()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("codeium").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("codeium").chat()`: argument contract may be non-obvious; check :help/README.
-- `require("codeium").disable()`: argument contract may be non-obvious; check :help/README.
-- `require("codeium").enable()`: argument contract may be non-obvious; check :help/README.
-- `require("codeium").toggle()`: UI/state entrypoint; verify window/buffer context before calling.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help codeium`, the local README, and the GitHub README listed below.
+
+- `require("codeium").setup(options)`
+- `require("codeium").chat()`
+- `require("codeium").disable()`
+- `require("codeium").enable()`
+- `require("codeium").toggle()`
 
 ## References
 

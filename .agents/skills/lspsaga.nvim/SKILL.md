@@ -14,12 +14,15 @@ Use it as a fast API/command index before reading source.
 ```lua
 require("lspsaga") -- table
 require("lspsaga").saga_augroup -- number
-require("lspsaga").setup(p1)
+require("lspsaga").setup(opts)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lspsaga").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lspsaga`, the local README, and the GitHub README listed below.
+
+- `require("lspsaga").setup(opts)`
 
 ## References
 

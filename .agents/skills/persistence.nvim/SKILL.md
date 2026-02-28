@@ -14,28 +14,31 @@ require("persistence") -- table
 require("persistence")._active -- boolean
 require("persistence").active()
 require("persistence").branch()
-require("persistence").current(p1)
-require("persistence").fire(p1)
+require("persistence").current(opts)
+require("persistence").fire(event)
 require("persistence").last()
 require("persistence").list()
-require("persistence").load(p1)
+require("persistence").load(opts)
 require("persistence").save()
 require("persistence").select()
-require("persistence").setup(p1)
+require("persistence").setup(opts)
 require("persistence").start()
 require("persistence").stop()
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("persistence").current(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").fire(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").load(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("persistence").active()`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").branch()`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").last()`: argument contract may be non-obvious; check :help/README.
-- `require("persistence").list()`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help persistence`, the local README, and the GitHub README listed below.
+
+- `require("persistence").current(opts)`
+- `require("persistence").fire(event)`
+- `require("persistence").load(opts)`
+- `require("persistence").setup(opts)`
+- `require("persistence").active()`
+- `require("persistence").branch()`
+- `require("persistence").last()`
+- `require("persistence").list()`
 
 ## References
 

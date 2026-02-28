@@ -11,14 +11,14 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("lspconfig") -- table
-require("lspconfig").server_aliases(p1)
+require("lspconfig").server_aliases(name)
 require("lspconfig").util -- table
-require("lspconfig").util._parse_user_command_options(p1)
-require("lspconfig").util.add_hook_after(p1, p2)
-require("lspconfig").util.add_hook_before(p1, p2)
+require("lspconfig").util._parse_user_command_options(command_definition)
+require("lspconfig").util.add_hook_after(func, new_fn)
+require("lspconfig").util.add_hook_before(func, new_fn)
 require("lspconfig").util.available_servers()
-require("lspconfig").util.bufname_valid(p1)
-require("lspconfig").util.create_module_commands(p1, p2)
+require("lspconfig").util.bufname_valid(bufname)
+require("lspconfig").util.create_module_commands(module_name, commands)
 require("lspconfig").util.default_config -- table
 require("lspconfig").util.default_config.autostart -- boolean
 require("lspconfig").util.default_config.capabilities -- table
@@ -31,46 +31,49 @@ require("lspconfig").util.default_config.init_options -- table
 require("lspconfig").util.default_config.log_level -- number
 require("lspconfig").util.default_config.message_level -- number
 require("lspconfig").util.default_config.settings -- table
-require("lspconfig").util.find_git_ancestor(p1)
-require("lspconfig").util.find_mercurial_ancestor(p1)
-require("lspconfig").util.find_node_modules_ancestor(p1)
-require("lspconfig").util.find_package_json_ancestor(p1)
-require("lspconfig").util.get_active_client_by_name(p1, p2)
-require("lspconfig").util.get_active_clients_list_by_ft(p1)
-require("lspconfig").util.get_config_by_ft(p1)
-require("lspconfig").util.get_lsp_clients(p1)
+require("lspconfig").util.find_git_ancestor(startpath)
+require("lspconfig").util.find_mercurial_ancestor(startpath)
+require("lspconfig").util.find_node_modules_ancestor(startpath)
+require("lspconfig").util.find_package_json_ancestor(startpath)
+require("lspconfig").util.get_active_client_by_name(bufnr, servername)
+require("lspconfig").util.get_active_clients_list_by_ft(filetype)
+require("lspconfig").util.get_config_by_ft(filetype)
+require("lspconfig").util.get_lsp_clients(filter)
 require("lspconfig").util.get_managed_clients()
-require("lspconfig").util.get_other_matching_providers(p1)
-require("lspconfig").util.get_typescript_server_path(p1)
-require("lspconfig").util.insert_package_json(p1, p2, p3)
+require("lspconfig").util.get_other_matching_providers(filetype)
+require("lspconfig").util.get_typescript_server_path(root_dir)
+require("lspconfig").util.insert_package_json(root_files, field, fname)
 require("lspconfig").util.path -- table
-require("lspconfig").util.path.dirname(p1)
-require("lspconfig").util.path.exists(p1)
-require("lspconfig").util.path.is_descendant(p1, p2)
-require("lspconfig").util.path.is_dir(p1)
-require("lspconfig").util.path.is_file(p1)
-require("lspconfig").util.path.iterate_parents(p1)
+require("lspconfig").util.path.dirname(arg1)
+require("lspconfig").util.path.exists(filename)
+require("lspconfig").util.path.is_descendant(root, path)
+require("lspconfig").util.path.is_dir(filename)
+require("lspconfig").util.path.is_file(path)
+require("lspconfig").util.path.iterate_parents(arg1)
 require("lspconfig").util.path.join(...)
 require("lspconfig").util.path.path_separator -- string
-require("lspconfig").util.path.sanitize(p1, p2)
-require("lspconfig").util.root_markers_with_field(p1, p2, p3, p4)
+require("lspconfig").util.path.sanitize(arg1, arg2)
+require("lspconfig").util.root_markers_with_field(root_files, new_names, field, fname)
 require("lspconfig").util.root_pattern(...)
-require("lspconfig").util.search_ancestors(p1, p2)
-require("lspconfig").util.strip_archive_subpath(p1)
-require("lspconfig").util.tbl_flatten(p1)
-require("lspconfig").util.validate_bufnr(p1)
+require("lspconfig").util.search_ancestors(startpath, func)
+require("lspconfig").util.strip_archive_subpath(path)
+require("lspconfig").util.tbl_flatten(t)
+require("lspconfig").util.validate_bufnr(bufnr)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lspconfig").util.root_markers_with_field(p1, p2, p3, p4)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.insert_package_json(p1, p2, p3)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.add_hook_after(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.add_hook_before(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.create_module_commands(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.get_active_client_by_name(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.path.is_descendant(p1, p2)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspconfig").util.path.sanitize(p1, p2)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lspconfig`, the local README, and the GitHub README listed below.
+
+- `require("lspconfig").util.root_markers_with_field(root_files, new_names, field, fname)`
+- `require("lspconfig").util.insert_package_json(root_files, field, fname)`
+- `require("lspconfig").util.add_hook_after(func, new_fn)`
+- `require("lspconfig").util.add_hook_before(func, new_fn)`
+- `require("lspconfig").util.create_module_commands(module_name, commands)`
+- `require("lspconfig").util.get_active_client_by_name(bufnr, servername)`
+- `require("lspconfig").util.path.is_descendant(root, path)`
+- `require("lspconfig").util.path.sanitize(arg1, arg2)`
 
 ## References
 

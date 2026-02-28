@@ -11,25 +11,28 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("substitute") -- table
-require("substitute").eol(p1)
-require("substitute").highlight_substituted_text(p1)
-require("substitute").line(p1)
-require("substitute").operator(p1)
-require("substitute").operator_callback(p1)
-require("substitute").setup(p1)
+require("substitute").eol(options)
+require("substitute").highlight_substituted_text(marks)
+require("substitute").line(options)
+require("substitute").operator(options)
+require("substitute").operator_callback(vmode)
+require("substitute").setup(options)
 require("substitute").state -- table
-require("substitute").visual(p1)
+require("substitute").visual(options)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("substitute").eol(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("substitute").highlight_substituted_text(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("substitute").line(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("substitute").operator(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("substitute").operator_callback(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("substitute").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("substitute").visual(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help substitute`, the local README, and the GitHub README listed below.
+
+- `require("substitute").eol(options)`
+- `require("substitute").highlight_substituted_text(marks)`
+- `require("substitute").line(options)`
+- `require("substitute").operator(options)`
+- `require("substitute").operator_callback(vmode)`
+- `require("substitute").setup(options)`
+- `require("substitute").visual(options)`
 
 ## References
 

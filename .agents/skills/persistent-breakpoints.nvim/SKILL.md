@@ -19,12 +19,15 @@ Use it as a fast API/command index before reading source.
 
 ```lua
 require("persistent-breakpoints") -- table
-require("persistent-breakpoints").setup(p1)
+require("persistent-breakpoints").setup(_cfg)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("persistent-breakpoints").setup(p1)`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help persistent-breakpoints`, the local README, and the GitHub README listed below.
+
+- `require("persistent-breakpoints").setup(_cfg)`
 
 ## References
 

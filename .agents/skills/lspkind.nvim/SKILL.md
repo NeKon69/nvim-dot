@@ -11,8 +11,8 @@ _No new user commands detected from runtime diff._
 
 ```lua
 require("lspkind") -- table
-require("lspkind").cmp_format(p1)
-require("lspkind").init(p1)
+require("lspkind").cmp_format(opts)
+require("lspkind").init(opts)
 require("lspkind").presets -- table
 require("lspkind").presets.codicons -- table
 require("lspkind").presets.codicons.Class -- string
@@ -66,16 +66,19 @@ require("lspkind").presets.default.TypeParameter -- string
 require("lspkind").presets.default.Unit -- string
 require("lspkind").presets.default.Value -- string
 require("lspkind").presets.default.Variable -- string
-require("lspkind").setup(p1)
-require("lspkind").symbolic(p1)
+require("lspkind").setup(opts)
+require("lspkind").symbolic(kind)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("lspkind").cmp_format(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("lspkind").init(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspkind").setup(p1)`: setup entrypoint; call once and keep opts explicit.
-- `require("lspkind").symbolic(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help lspkind`, the local README, and the GitHub README listed below.
+
+- `require("lspkind").cmp_format(opts)`
+- `require("lspkind").init(opts)`
+- `require("lspkind").setup(opts)`
+- `require("lspkind").symbolic(kind)`
 
 ## References
 

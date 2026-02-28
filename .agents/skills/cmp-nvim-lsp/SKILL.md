@@ -13,17 +13,20 @@ _No new user commands detected from runtime diff._
 require("cmp_nvim_lsp") -- table
 require("cmp_nvim_lsp")._on_insert_enter()
 require("cmp_nvim_lsp").client_source_map -- table
-require("cmp_nvim_lsp").default_capabilities(p1)
+require("cmp_nvim_lsp").default_capabilities(override)
 require("cmp_nvim_lsp").setup()
-require("cmp_nvim_lsp").update_capabilities(p1, p2)
+require("cmp_nvim_lsp").update_capabilities(_, override)
 ```
 
 ## Harder Calls (quick notes)
 
-- `require("cmp_nvim_lsp").update_capabilities(p1, p2)`: argument contract may be non-obvious; check :help/README.
-- `require("cmp_nvim_lsp").default_capabilities(p1)`: argument contract may be non-obvious; check :help/README.
-- `require("cmp_nvim_lsp")._on_insert_enter()`: argument contract may be non-obvious; check :help/README.
-- `require("cmp_nvim_lsp").setup()`: setup entrypoint; call once and keep opts explicit.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help cmp_nvim_lsp`, the local README, and the GitHub README listed below.
+
+- `require("cmp_nvim_lsp").update_capabilities(_, override)`
+- `require("cmp_nvim_lsp").default_capabilities(override)`
+- `require("cmp_nvim_lsp")._on_insert_enter()`
+- `require("cmp_nvim_lsp").setup()`
 
 ## References
 

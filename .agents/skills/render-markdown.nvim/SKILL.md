@@ -33,7 +33,7 @@ require("render-markdown").default.bullet.icons.2 -- string
 require("render-markdown").default.bullet.icons.3 -- string
 require("render-markdown").default.bullet.icons.4 -- string
 require("render-markdown").default.bullet.left_pad -- number
-require("render-markdown").default.bullet.ordered_icons(p1)
+require("render-markdown").default.bullet.ordered_icons(ctx)
 require("render-markdown").default.bullet.render_modes -- boolean
 require("render-markdown").default.bullet.right_pad -- number
 require("render-markdown").default.bullet.scope_highlight -- table
@@ -216,7 +216,10 @@ require("render-markdown").default.code.language_pad -- number
 
 ## Harder Calls (quick notes)
 
-- `require("render-markdown").default.bullet.ordered_icons(p1)`: argument contract may be non-obvious; check :help/README.
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before using them in mappings/autocmds, confirm expected inputs and return/error behavior in `:help render-markdown`, the local README, and the GitHub README listed below.
+
+- `require("render-markdown").default.bullet.ordered_icons(ctx)`
 
 ## References
 
