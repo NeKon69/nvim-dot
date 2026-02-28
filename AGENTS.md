@@ -133,6 +133,16 @@ If the user proposes a new feature/idea, automatically enter `@{ask_quiestions}`
 - Avoid hidden coupling (global side effects, implicit state changes) unless necessary.
 - Prefer clear local configuration over magic defaults when risk is high.
 
+## Skill Sync Workflow (Required)
+- When changing Neovim config code, update related `.agents/skills/*/SKILL.md` files in the same task.
+- Treat skill sync as part of done criteria, not optional follow-up work.
+- Update skills for everything changed in config scope (functions/APIs/events/keymaps/commands) whenever present.
+- If a changed config file has no matching skill file, create one in `.agents/skills/` with the established local format.
+- If mapping from changed config file to skill file is unclear, stop and ask the user before editing skill files.
+- For large source files (more than 250 lines), agents may update skill docs without asking first unless the user explicitly requests otherwise.
+- Keep skill diffs minimal and scoped to touched behavior; avoid unrelated rewrites.
+- If a task edits only docs/non-config files, skill sync is optional unless the user explicitly asks for it.
+
 ## Communication
 - Be direct, technical, and concise.
 - State assumptions clearly.
