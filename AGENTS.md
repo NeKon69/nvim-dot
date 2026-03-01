@@ -135,6 +135,9 @@ If the user proposes a new feature/idea, automatically enter `@{ask_quiestions}`
 
 ## Skill Sync Workflow (Required)
 - When changing Neovim config code, update related `.agents/skills/*/SKILL.md` files in the same task.
+- For any edit in `lua/plugins/*.lua`, regenerate the file skill (`plugin.<file>/SKILL.md`) in the same task.
+- When adding a **new external plugin dependency** (`owner/repo`) in `lua/plugins/*.lua` (new file or existing file), also generate the external plugin API skill in the same task.
+- When removing an external plugin dependency, remove or update the external plugin API skill in the same task.
 - Treat skill sync as part of done criteria, not optional follow-up work.
 - Update skills for everything changed in config scope (functions/APIs/events/keymaps/commands) whenever present.
 - If a changed config file has no matching skill file, create one in `.agents/skills/` with the established local format.
@@ -142,6 +145,20 @@ If the user proposes a new feature/idea, automatically enter `@{ask_quiestions}`
 - For large source files (more than 250 lines), agents may update skill docs without asking first unless the user explicitly requests otherwise.
 - Keep skill diffs minimal and scoped to touched behavior; avoid unrelated rewrites.
 - If a task edits only docs/non-config files, skill sync is optional unless the user explicitly asks for it.
+
+### Skill Generation Commands
+When adding a new plugin or making significant changes to existing config files, generate skills using:
+- **Plugin file skill** (`lua/plugins/*.lua`): `bash scripts/generate_file_skill.sh --file lua/plugins/<name>.lua --kind plugin --force`
+- **User file skill** (`lua/user/*.lua`): `bash scripts/generate_file_skill.sh --file lua/user/<name>.lua --kind user --force`
+- **External plugin API skill**: `bash scripts/generate_skill.sh --plugin <org>/<repo> --module <module> --skill-name <name>`
+
+External plugin checklist (mandatory):
+- Add external plugin (`owner/repo`) in `lua/plugins/*.lua` => run both scripts:
+  - `generate_file_skill.sh` for the touched plugin file.
+  - `generate_skill.sh` for the added external plugin API.
+- Remove external plugin (`owner/repo`) => update/remove both corresponding skills.
+
+Always regenerate skills for modified files (`--force`) unless explicitly told not to.
 
 ## Communication
 - Be direct, technical, and concise.
@@ -199,4 +216,3 @@ Avoid by default:
 - Clarify UX, keymaps, edge cases, and rollback path.
 - Propose one minimal implementation path first.
 - Wait for user direction before coding.
-

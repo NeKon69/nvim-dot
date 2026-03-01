@@ -1,15 +1,26 @@
-# Plugin.codecompanion API Reference
+# Plugin.opencode API Reference
 
-This file is generated for source `lua/plugins/codecompanion.lua`.
+This file is generated for source `lua/plugins/opencode.lua`.
 Use it as a fast API/command index before reading source.
 
 ## Commands (`:`) detected in file
 
 _No user commands detected in static scan._
 
-## Module API (`plugins.codecompanion`)
+## Module API (`plugins.opencode`)
 
-_No exported API/keymaps/autocmds detected in static scan._
+```lua
+vim.keymap.set("n", "<C-d>", function()
+
+vim.keymap.set("n", "<C-u>", function()
+
+vim.keymap.set("n", "<Esc>", function()
+
+vim.keymap.set("n", "G", function()
+
+vim.keymap.set("n", "gg", function()
+
+```
 
 ## Harder Calls (quick notes)
 
@@ -20,13 +31,11 @@ _No exported function signatures detected._
 
 ## References
 
-- `codecompanion.adapters`
+- `nickjvandyke/opencode.nvim`
 
-- `nvim-lua/plenary.nvim` (skill: `.agents/skills/plenary.nvim/SKILL.md`)
+- `opencode`
 
-- `nvim-treesitter/nvim-treesitter` (skill: `.agents/skills/nvim-treesitter/SKILL.md`)
-
-- `olimorris/codecompanion.nvim`
+- `snacks.terminal`
 
 
 _Generated in headless mode from static file analysis._
