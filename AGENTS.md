@@ -46,6 +46,7 @@ When tradeoffs appear, prioritize in this order:
 
 ## File Safety Rules
 - Never edit `lazy-lock.json` unless the user explicitly overrides this rule.
+- If `lazy-lock.json` changed but you did not edit it directly (for example a side effect of plugin install/sync), do not treat it as your task scope and do not try to "fix" it.
 - Avoid touching generated/log/temp files unless explicitly requested.
 - Keep edits scoped to files directly relevant to the task.
 - High suspicion examples (ask first):
@@ -57,6 +58,7 @@ When tradeoffs appear, prioritize in this order:
 
 ## Scope Discipline
 - Read only what is needed to complete the task.
+- Only read files directly relevant to the active task; do not inspect adjacent modules unless task requirements justify it.
 - Avoid “cleanup” edits not directly tied to the requested outcome.
 - Avoid reorganizing directory structure unless explicitly asked.
 - If a requested change implies touching many files, pause and propose a staged plan.
@@ -73,6 +75,7 @@ When tradeoffs appear, prioritize in this order:
 ## Validation Rules
 - Every change should be validated with the lightest command that proves safety.
 - For Neovim config changes, prefer headless checks first.
+- For plugin work, do not stop at startup/load checks only; also validate at least one real plugin feature (for example command availability, keymap behavior, or a core action) and report that result.
 - If a command fails, include:
   - exact command,
   - high-signal error lines,

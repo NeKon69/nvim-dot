@@ -250,12 +250,8 @@ tags
 [._]*.un~
 
 ### Manual additions (current untracked files) ###
-.nvim/history.jsonl
-.nvim/project_marker
-.nvim/targets.json
-.nvim/targets.state.json
+.nvim
 .nvimlog
-after/queries/cpp/highlights.scm.bak
 gen_templates.sh
 jsn.json
 justfile

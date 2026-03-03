@@ -6,6 +6,7 @@ usage() {
 Usage:
   scripts/generate_skill.sh --plugin <lazy-plugin-name> --module <require-module> [options]
 
+
 Required:
   --plugin <name>      Plugin name as used by lazy spec (example: nvim-telescope/telescope.nvim)
   --module <name>      Module name for require() (example: telescope)
@@ -92,6 +93,7 @@ cleanup() {
   rm -f "$TMP_LUA"
   rm -f "$TMP_INIT"
   rm -f "$TMP_OK"
+
 }
 trap cleanup EXIT
 
