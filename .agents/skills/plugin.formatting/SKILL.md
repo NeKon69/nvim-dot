@@ -16,6 +16,8 @@ event = "BufEnter"
 
 event = "BufWritePost"
 
+event = "BufWritePre"
+
 event = "InsertLeave"
 
 ```

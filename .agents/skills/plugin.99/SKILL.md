@@ -33,5 +33,7 @@ _No exported function signatures detected._
 
 - `ThePrimeagen/99` (skill: `.agents/skills/99/SKILL.md`)
 
+- `openai/gpt-5.4`
+
 
 _Generated in headless mode from static file analysis._

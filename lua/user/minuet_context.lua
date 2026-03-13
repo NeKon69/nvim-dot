@@ -21,10 +21,12 @@ local function sanitize_prompt_text(text)
 	if not text or text == "" then
 		return ""
 	end
+
 	text = tostring(text)
 	text = text:gsub("\r", "")
-	text = text:gsub("[^\n\t\32-\126]", " ")
-	text = text:gsub("[ \t]+", " ")
+	text = text:gsub("[%z\1-\8\11-\31\127]", "")
+	text = text:gsub("\n\n+", "\n\n")
+
 	return text
 end
 

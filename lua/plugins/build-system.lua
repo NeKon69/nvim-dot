@@ -132,7 +132,105 @@ return {
 		local get_current_run_config_from_targets
 		local run_program_probe
 
+		local function phone_notify_config()
+			local cfg = vim.g.overseer_phone_notify or {}
+			return {
+				enabled = cfg.enabled ~= false,
+				server = cfg.server or "https://ntfy.sh",
+				topic = cfg.topic or "progamers-builds",
+				minimum_duration = tonumber(cfg.minimum_duration) or 300,
+				log_lines = tonumber(cfg.log_lines) or 20,
+			}
+		end
+
 		-- === HELPERS ===
+
+		local function get_task_output_tail(task, max_lines)
+			local bufnr = task:get_bufnr()
+			if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+				return "No task output captured."
+			end
+			local line_count = vim.api.nvim_buf_line_count(bufnr)
+			local start_line = math.max(0, line_count - math.max(max_lines or 20, 1))
+			local lines = vim.api.nvim_buf_get_lines(bufnr, start_line, line_count, false)
+			while #lines > 0 and lines[#lines] == "" do
+				table.remove(lines)
+			end
+			if #lines == 0 then
+				return "No task output captured."
+			end
+			local joined = table.concat(lines, "\n")
+			if #joined > 3500 then
+				joined = joined:sub(#joined - 3499)
+			end
+			return joined
+		end
+
+		local function notify_long_build(task, status)
+			local cfg = phone_notify_config()
+			if not cfg.enabled then
+				return
+			end
+			if vim.fn.executable("curl") ~= 1 then
+				vim.schedule(function()
+					vim.notify("Build phone notification skipped: curl is not installed.", vim.log.levels.WARN)
+				end)
+				return
+			end
+			local duration = math.max(0, (task.time_end or os.time()) - (task.time_start or os.time()))
+			if duration < cfg.minimum_duration then
+				return
+			end
+			local url = cfg.server:gsub("/+$", "") .. "/" .. cfg.topic
+			local succeeded = status == "SUCCESS"
+			local body = table.concat({
+				string.format("Task: %s", task.name),
+				string.format("Status: %s", succeeded and "Build success" or "Build failure"),
+				string.format("Duration: %ds", duration),
+				string.format("CWD: %s", task.cwd or vim.fn.getcwd()),
+				"",
+				string.format("Last %d log lines:", cfg.log_lines),
+				get_task_output_tail(task, cfg.log_lines),
+			}, "\n")
+			vim.system({
+				"curl",
+				"-fsS",
+				"--retry",
+				"1",
+				"-H",
+				"Title: " .. (succeeded and "Build success" or "Build failure"),
+				"-H",
+				"Priority: " .. (succeeded and "default" or "high"),
+				"-H",
+				"Tags: hammer," .. (succeeded and "white_check_mark" or "x"),
+				"-d",
+				body,
+				url,
+			}, { text = true }, function(obj)
+				if obj.code == 0 then
+					return
+				end
+				vim.schedule(function()
+					vim.notify(
+						"Build phone notification failed: " .. vim.trim(obj.stderr or obj.stdout or "curl error"),
+						vim.log.levels.WARN
+					)
+				end)
+			end)
+		end
+
+		local function attach_build_phone_notification(task)
+			if not task or task.metadata._build_phone_notify_attached then
+				return
+			end
+			task.metadata._build_phone_notify_attached = true
+			task:subscribe("on_complete", function(completed_task, status)
+				if status ~= "SUCCESS" and status ~= "FAILURE" then
+					return
+				end
+				notify_long_build(completed_task, status)
+			end)
+		end
 
 		local function get_just_info()
 			local files = vim.fs.find({ "justfile", ".justfile" }, { upward = true, type = "file" })
@@ -266,10 +364,8 @@ return {
 			if entry.mode == "launch" then
 				if not entry.program or entry.program == "" then
 					local default_program = vim.fn.filereadable(cwd .. "/main.py") == 1 and "main.py" or ""
-					local program = prompt_with_default(
-						string.format("debug target '%s' program: ", target),
-						default_program
-					)
+					local program =
+						prompt_with_default(string.format("debug target '%s' program: ", target), default_program)
 					if not program then
 						return nil, "Missing Python debug program."
 					end
@@ -294,10 +390,7 @@ return {
 			end
 
 			if not entry.pytest_target or entry.pytest_target == "" then
-				local test_target = prompt_with_default(
-					string.format("debug pytest target '%s': ", target),
-					"tests"
-				)
+				local test_target = prompt_with_default(string.format("debug pytest target '%s': ", target), "tests")
 				if not test_target then
 					return nil, "Missing pytest target."
 				end
@@ -485,7 +578,12 @@ return {
 			else
 				local resolved_program = targets_config.resolve_program(effective, run_program_probe)
 				if not resolved_program or resolved_program == "" then
-					return nil, "No program resolved for run target '" .. effective.target .. "' profile '" .. effective.profile .. "'."
+					return nil,
+						"No program resolved for run target '"
+							.. effective.target
+							.. "' profile '"
+							.. effective.profile
+							.. "'."
 				end
 				table.insert(parts, resolved_program)
 			end
@@ -611,184 +709,215 @@ return {
 							local existing_target = cfg.targets[target_name] or {}
 							local existing_profile = (existing_target.profiles or {})[profile_name] or {}
 							local lang_default = existing_target.language or "cpp"
-							vim.ui.select({ "cpp", "python" }, { prompt = "Language:", format_item = function(i)
-								return i .. (i == lang_default and " (current)" or "")
-							end }, function(language)
+							vim.ui.select({ "cpp", "python" }, {
+								prompt = "Language:",
+								format_item = function(i)
+									return i .. (i == lang_default and " (current)" or "")
+								end,
+							}, function(language)
 								if not language then
 									return
 								end
-								vim.ui.select({ "shared", "profile" }, { prompt = "Store bin/args/cwd in:" }, function(scope)
-									if not scope then
-										return
-									end
-									local payload = {
-										language = language,
-										scope = scope,
-										build_task = existing_target.build_task or "build",
-										rebuild_policy = existing_target.rebuild_policy or "auto",
-									}
-									local function ask_program_mode(done)
-										if language ~= "python" then
-											done()
+								vim.ui.select(
+									{ "shared", "profile" },
+									{ prompt = "Store bin/args/cwd in:" },
+									function(scope)
+										if not scope then
 											return
 										end
-										local mode_default = existing_profile.mode or "launch"
-										vim.ui.select({ "launch", "pytest" }, {
-											prompt = "Python mode:",
-											format_item = function(i)
-												return i .. (i == mode_default and " (current)" or "")
-											end,
-										}, function(mode)
-											if not mode then
-												return
-											end
-											payload.mode = mode
-											done()
-										end)
-									end
-									local function ask_program(done)
-										vim.ui.select({
-											"Telescope file picker",
-											"Manual path input",
-											"Skip program",
-										}, { prompt = "Program source:" }, function(choice)
-											if not choice then
-												return
-											end
-											if choice == "Skip program" then
+										local payload = {
+											language = language,
+											scope = scope,
+											build_task = existing_target.build_task or "build",
+											rebuild_policy = existing_target.rebuild_policy or "auto",
+										}
+										local function ask_program_mode(done)
+											if language ~= "python" then
 												done()
 												return
 											end
-											if choice == "Manual path input" then
-												vim.ui.input({ prompt = "Program path: ", default = existing_profile.program or "" }, function(inp)
-													if inp and inp ~= "" then
-														payload.program = rel_to_root(vim.fn.expand(inp), root)
+											local mode_default = existing_profile.mode or "launch"
+											vim.ui.select({ "launch", "pytest" }, {
+												prompt = "Python mode:",
+												format_item = function(i)
+													return i .. (i == mode_default and " (current)" or "")
+												end,
+											}, function(mode)
+												if not mode then
+													return
+												end
+												payload.mode = mode
+												done()
+											end)
+										end
+										local function ask_program(done)
+											vim.ui.select({
+												"Telescope file picker",
+												"Manual path input",
+												"Skip program",
+											}, { prompt = "Program source:" }, function(choice)
+												if not choice then
+													return
+												end
+												if choice == "Skip program" then
+													done()
+													return
+												end
+												if choice == "Manual path input" then
+													vim.ui.input(
+														{
+															prompt = "Program path: ",
+															default = existing_profile.program or "",
+														},
+														function(inp)
+															if inp and inp ~= "" then
+																payload.program = rel_to_root(vim.fn.expand(inp), root)
+															end
+															done()
+														end
+													)
+													return
+												end
+												telescope_pick_file(root, "Select Program", function(abs_path)
+													if abs_path then
+														payload.program = rel_to_root(abs_path, root)
 													end
 													done()
 												end)
-												return
-											end
-											telescope_pick_file(root, "Select Program", function(abs_path)
-												if abs_path then
-													payload.program = rel_to_root(abs_path, root)
-												end
-												done()
 											end)
-										end)
-									end
-									local function ask_args(done)
-										local args_default = table.concat(existing_profile.args or {}, " ")
-										vim.ui.input({ prompt = "Args (space separated): ", default = args_default }, function(inp)
-											payload.args = parse_args(inp or "")
-											done()
-										end)
-									end
-									local function ask_cwd(done)
-										vim.ui.select({
-											"Project root",
-											"Telescope dir picker",
-											"Manual dir input",
-											"Skip cwd",
-										}, { prompt = "CWD:" }, function(choice)
-											if not choice then
-												return
-											end
-											if choice == "Project root" then
-												payload.cwd = root
-												done()
-												return
-											end
-											if choice == "Skip cwd" then
-												done()
-												return
-											end
-											if choice == "Manual dir input" then
-												vim.ui.input({ prompt = "CWD path: ", default = existing_profile.cwd or root }, function(inp)
-													if inp and inp ~= "" then
-														payload.cwd = rel_to_root(vim.fn.expand(inp), root)
+										end
+										local function ask_args(done)
+											local args_default = table.concat(existing_profile.args or {}, " ")
+											vim.ui.input(
+												{ prompt = "Args (space separated): ", default = args_default },
+												function(inp)
+													payload.args = parse_args(inp or "")
+													done()
+												end
+											)
+										end
+										local function ask_cwd(done)
+											vim.ui.select({
+												"Project root",
+												"Telescope dir picker",
+												"Manual dir input",
+												"Skip cwd",
+											}, { prompt = "CWD:" }, function(choice)
+												if not choice then
+													return
+												end
+												if choice == "Project root" then
+													payload.cwd = root
+													done()
+													return
+												end
+												if choice == "Skip cwd" then
+													done()
+													return
+												end
+												if choice == "Manual dir input" then
+													vim.ui.input(
+														{ prompt = "CWD path: ", default = existing_profile.cwd or root },
+														function(inp)
+															if inp and inp ~= "" then
+																payload.cwd = rel_to_root(vim.fn.expand(inp), root)
+															end
+															done()
+														end
+													)
+													return
+												end
+												telescope_pick_dir(root, "Select CWD Directory", function(abs_path)
+													if abs_path then
+														payload.cwd = rel_to_root(abs_path, root)
 													end
 													done()
 												end)
-												return
-											end
-											telescope_pick_dir(root, "Select CWD Directory", function(abs_path)
-												if abs_path then
-													payload.cwd = rel_to_root(abs_path, root)
-												end
-												done()
 											end)
-										end)
-									end
-									local function ask_policy(done)
-										vim.ui.select({ "auto", "always", "never" }, { prompt = "Rebuild policy:" }, function(pol)
-											if not pol then
-												return
-											end
-											payload.rebuild_policy = pol
-											vim.ui.input({
-												prompt = "Build task name:",
-												default = existing_target.build_task or "build",
-											}, function(bt)
-												payload.build_task = (bt and bt ~= "") and bt or "build"
-												done()
-											end)
-										end)
-									end
-									local function ask_pytest(done)
-										if language ~= "python" or payload.mode ~= "pytest" then
-											done()
-											return
 										end
-										vim.ui.input({
-											prompt = "Pytest target:",
-											default = existing_profile.pytest_target or "tests",
-										}, function(test_target)
-											payload.pytest_target = (test_target and test_target ~= "") and test_target or "tests"
-											vim.ui.input({
-												prompt = "Pytest args:",
-												default = table.concat(existing_profile.pytest_args or {}, " "),
-											}, function(pyargs)
-												payload.pytest_args = parse_args(pyargs or "")
+										local function ask_policy(done)
+											vim.ui.select(
+												{ "auto", "always", "never" },
+												{ prompt = "Rebuild policy:" },
+												function(pol)
+													if not pol then
+														return
+													end
+													payload.rebuild_policy = pol
+													vim.ui.input({
+														prompt = "Build task name:",
+														default = existing_target.build_task or "build",
+													}, function(bt)
+														payload.build_task = (bt and bt ~= "") and bt or "build"
+														done()
+													end)
+												end
+											)
+										end
+										local function ask_pytest(done)
+											if language ~= "python" or payload.mode ~= "pytest" then
 												done()
+												return
+											end
+											vim.ui.input({
+												prompt = "Pytest target:",
+												default = existing_profile.pytest_target or "tests",
+											}, function(test_target)
+												payload.pytest_target = (test_target and test_target ~= "")
+														and test_target
+													or "tests"
+												vim.ui.input({
+													prompt = "Pytest args:",
+													default = table.concat(existing_profile.pytest_args or {}, " "),
+												}, function(pyargs)
+													payload.pytest_args = parse_args(pyargs or "")
+													done()
+												end)
 											end)
-										end)
-									end
-									ask_program_mode(function()
-										ask_program(function()
-											ask_args(function()
-												ask_cwd(function()
-													ask_policy(function()
-														ask_pytest(function()
-															local ok_upsert, err_upsert = targets_config.upsert_target_profile(
-																target_name,
-																profile_name,
-																payload
-															)
-															if not ok_upsert then
-																vim.notify(err_upsert, vim.log.levels.ERROR)
-																return
-															end
-															refresh_metadata()
-															local active_target, active_profile = targets_config.get_active()
-															if active_target then
-																_G.BuildSystem.target = active_target
-															end
-															if active_profile then
-																_G.BuildSystem.profile = active_profile
-															end
-															save_state()
-															overseer.clear_task_cache()
-															vim.notify(
-																string.format("Updated target '%s' profile '%s'.", target_name, profile_name),
-																vim.log.levels.INFO
-															)
+										end
+										ask_program_mode(function()
+											ask_program(function()
+												ask_args(function()
+													ask_cwd(function()
+														ask_policy(function()
+															ask_pytest(function()
+																local ok_upsert, err_upsert =
+																	targets_config.upsert_target_profile(
+																		target_name,
+																		profile_name,
+																		payload
+																	)
+																if not ok_upsert then
+																	vim.notify(err_upsert, vim.log.levels.ERROR)
+																	return
+																end
+																refresh_metadata()
+																local active_target, active_profile =
+																	targets_config.get_active()
+																if active_target then
+																	_G.BuildSystem.target = active_target
+																end
+																if active_profile then
+																	_G.BuildSystem.profile = active_profile
+																end
+																save_state()
+																overseer.clear_task_cache()
+																vim.notify(
+																	string.format(
+																		"Updated target '%s' profile '%s'.",
+																		target_name,
+																		profile_name
+																	),
+																	vim.log.levels.INFO
+																)
+															end)
 														end)
 													end)
 												end)
 											end)
 										end)
-									end)
-								end)
+									end
+								)
 							end)
 						end
 						if profile_choice == "[+ New profile]" then
@@ -914,7 +1043,10 @@ return {
 				_G.BuildSystem.target = active_target
 				_G.BuildSystem.available_profiles = targets_config.list_profiles(active_target)
 				if #_G.BuildSystem.available_profiles > 0 then
-					if not active_profile or vim.tbl_contains(_G.BuildSystem.available_profiles, active_profile) == false then
+					if
+						not active_profile
+						or vim.tbl_contains(_G.BuildSystem.available_profiles, active_profile) == false
+					then
 						active_profile = _G.BuildSystem.available_profiles[1]
 						targets_config.set_active_profile(active_profile)
 					end
@@ -1055,10 +1187,14 @@ return {
 					params = { profile = _G.BuildSystem.profile, target = _G.BuildSystem.target },
 				}, function(task)
 					if not task then
-						vim.notify(("Build task '%s' not found, running anyway."):format(build_task_name), vim.log.levels.WARN)
+						vim.notify(
+							("Build task '%s' not found, running anyway."):format(build_task_name),
+							vim.log.levels.WARN
+						)
 						launch_run()
 						return
 					end
+					attach_build_phone_notification(task)
 					task:subscribe("on_complete", function(_, status)
 						if status == "SUCCESS" then
 							launch_run()
@@ -1075,8 +1211,14 @@ return {
 				params = { profile = _G.BuildSystem.profile, target = _G.BuildSystem.target },
 			}, function(task)
 				if not task then
-					vim.notify(("Task '%s' not found for target '%s'."):format(name, _G.BuildSystem.target), vim.log.levels.WARN)
+					vim.notify(
+						("Task '%s' not found for target '%s'."):format(name, _G.BuildSystem.target),
+						vim.log.levels.WARN
+					)
 					return
+				end
+				if name == "build" then
+					attach_build_phone_notification(task)
 				end
 				local function launch_interactive_task()
 					if not task or not task.metadata or not task.metadata.interactive then
@@ -1289,7 +1431,12 @@ return {
 			local args = targets_config.resolve_args(effective)
 			local cwd = targets_config.resolve_cwd(effective) or vim.fn.getcwd()
 			if not program or program == "" then
-				return nil, "No program resolved for run target '" .. effective.target .. "' profile '" .. effective.profile .. "'."
+				return nil,
+					"No program resolved for run target '"
+						.. effective.target
+						.. "' profile '"
+						.. effective.profile
+						.. "'."
 			end
 			return {
 				program = program,
@@ -1335,7 +1482,12 @@ return {
 			local program = targets_config.resolve_program(effective, run_program_probe)
 			local args = targets_config.resolve_args(effective)
 			if not program or program == "" then
-				return nil, "No python program resolved for debug target '" .. effective.target .. "' profile '" .. effective.profile .. "'."
+				return nil,
+					"No python program resolved for debug target '"
+						.. effective.target
+						.. "' profile '"
+						.. effective.profile
+						.. "'."
 			end
 			return {
 				type = "python",
@@ -1361,7 +1513,9 @@ return {
 				return false
 			end
 			local target = cfg.targets and cfg.targets[active_target]
-			return type(target) == "table" and type(target.profiles) == "table" and target.profiles[active_profile] ~= nil
+			return type(target) == "table"
+				and type(target.profiles) == "table"
+				and target.profiles[active_profile] ~= nil
 		end
 		_G.BuildSystem.register_debug_resolver = register_debug_resolver
 
@@ -1372,7 +1526,12 @@ return {
 				return
 			end
 			vim.notify(
-				string.format("Debug target '%s' profile '%s': %s", effective.target, effective.profile, vim.inspect(effective)),
+				string.format(
+					"Debug target '%s' profile '%s': %s",
+					effective.target,
+					effective.profile,
+					vim.inspect(effective)
+				),
 				vim.log.levels.INFO
 			)
 		end, {})

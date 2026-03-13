@@ -1,5 +1,48 @@
 local M = {}
-local Path = require("plenary.path")
+local ok, Path = pcall(require, "plenary.path")
+
+if not ok then
+	Path = {}
+	local FallbackPath = {}
+	FallbackPath.__index = FallbackPath
+
+	local function join_paths(...)
+		local parts = {}
+		for _, part in ipairs({ ... }) do
+			if part and part ~= "" then
+				table.insert(parts, tostring(part))
+			end
+		end
+		return table.concat(parts, "/"):gsub("//+", "/")
+	end
+
+	function Path:new(...)
+		return setmetatable({ filename = join_paths(...) }, FallbackPath)
+	end
+
+	function FallbackPath:expand()
+		return vim.fn.fnamemodify(self.filename, ":p")
+	end
+
+	function FallbackPath:mkdir(opts)
+		vim.fn.mkdir(self:expand(), opts and opts.parents and "p" or "")
+	end
+
+	function FallbackPath:make_relative(root)
+		local path = self:expand()
+		local root_path = vim.fn.fnamemodify(root, ":p")
+		local prefix = root_path:gsub("/+$", "") .. "/"
+		if path:sub(1, #prefix) == prefix then
+			return path:sub(#prefix + 1)
+		end
+		return path
+	end
+
+	function FallbackPath:exists()
+		return vim.uv.fs_stat(self:expand()) ~= nil
+	end
+end
+
 local project_root = require("user.project_root")
 
 local defaults = {
