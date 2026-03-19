@@ -1,47 +1,47 @@
 # User.lspconfig API Reference
 
-Source: `lua/user/lspconfig.lua`
+This file is generated for source `lua/user/lspconfig.lua`.
+Use it as a fast API/command index before reading source.
 
-## File Behavior
+## Commands (`:`) detected in file
 
-- Builds enhanced LSP capabilities from `cmp_nvim_lsp` (snippet + resolve support).
-- Clears LSP log file on startup and configures diagnostics/floating window defaults.
-- Installs per-buffer LSP keymaps and feature autocmds on `LspAttach`.
-- Implements delayed auto-hover with content checks to avoid noisy/empty popups.
+_No user commands detected in static scan._
 
-## Module API (`require("user.lspconfig")`)
+## Module API (`user.lspconfig`)
 
-- `capabilities`: prebuilt LSP client capabilities table for server setup.
+```lua
+vim.keymap.set("n", lhs, rhs, {
 
-## Keymaps (set on `LspAttach`)
+event = "BufEnter"
 
-- `<M-CR>`: Lspsaga code action.
-- `gd`: go to definition (history-wrapped).
-- `gp`: peek definition (history-wrapped).
-- `gD`: go to declaration (history-wrapped).
-- `gi`: go to implementation (history-wrapped).
-- `gt`: go to type definition (history-wrapped).
-- `gh`: open finder (history-wrapped).
-- `K`: manual hover popup.
-- `<leader>ca`: code action.
-- `<leader>cr`: rename symbol.
-- `<leader>o`: symbol outline.
-- `<leader>ci`: incoming calls.
-- `<leader>co`: outgoing calls.
-- `<leader>fm`: async format buffer.
-- `<leader>cl`: run CodeLens (only when server supports CodeLens).
+event = "CursorHold"
 
-## Commands, Events
+event = "CursorHoldI"
 
-- User commands: none defined in this module.
-- `LspAttach`: installs keymaps and buffer-local LSP behavior.
-- `BufEnter` / `CursorHold` / `InsertLeave`: refresh CodeLens when supported.
-- `CursorHold` / `CursorHoldI`: trigger document highlights or delayed hover flow.
-- `CursorMoved`: clear highlights and cancel hover timer.
-- `InsertEnter`: cancel hover timer while entering insert mode.
+event = "CursorMoved"
+
+event = "InsertEnter"
+
+event = "InsertLeave"
+
+event = "LspAttach"
+
+```
+
+## Harder Calls (quick notes)
+
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
+
+_No exported function signatures detected._
 
 ## References
 
-- `cmp_nvim_lsp`: LSP capabilities integration.
-- `lspsaga.hover`: hover window state checks.
-- `textDocument/hover`: low-level hover request used by delayed auto-hover.
+- `cmp_nvim_lsp`
+
+- `lspsaga.hover`
+
+- `textDocument/hover`
+
+
+_Generated in headless mode from static file analysis._

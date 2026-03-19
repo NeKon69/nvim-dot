@@ -127,7 +127,9 @@ return {
 		targets_config.ensure_files()
 
 		local state_file = vim.fn.stdpath("state") .. "/build_system_just.json"
+		local sound_dir = vim.fn.stdpath("config") .. "/assets/sounds"
 		local debug_meta_name = ".nvim/debug_targets.json"
+		local failure_sound_job_id = nil
 		local refresh_metadata
 		local get_current_run_config_from_targets
 		local run_program_probe
@@ -140,6 +142,18 @@ return {
 				topic = cfg.topic or "progamers-builds",
 				minimum_duration = tonumber(cfg.minimum_duration) or 300,
 				log_lines = tonumber(cfg.log_lines) or 20,
+			}
+		end
+
+		local function desktop_notify_config()
+			local cfg = vim.g.overseer_desktop_notify or {}
+			local phone_cfg = phone_notify_config()
+			return {
+				enabled = cfg.enabled ~= false,
+				minimum_duration = tonumber(cfg.minimum_duration) or phone_cfg.minimum_duration,
+				sound = cfg.sound ~= false,
+				success_sound = cfg.success_sound or (sound_dir .. "/build-success.flac"),
+				failure_sound = cfg.failure_sound or (sound_dir .. "/build-failure.mp3"),
 			}
 		end
 
@@ -219,16 +233,144 @@ return {
 			end)
 		end
 
-		local function attach_build_phone_notification(task)
-			if not task or task.metadata._build_phone_notify_attached then
+		local function stop_failure_desktop_sound()
+			if not failure_sound_job_id or vim.fn.jobwait({ failure_sound_job_id }, 0)[1] ~= -1 then
+				failure_sound_job_id = nil
 				return
 			end
-			task.metadata._build_phone_notify_attached = true
+			vim.fn.jobstop(failure_sound_job_id)
+			failure_sound_job_id = nil
+		end
+
+		local function play_desktop_build_sound(status)
+			local cfg = desktop_notify_config()
+			local sound_path = status == "SUCCESS" and cfg.success_sound or cfg.failure_sound
+			if vim.fn.executable("ffplay") ~= 1 then
+				vim.schedule(function()
+					vim.notify_once("Build desktop sound skipped: ffplay is not installed.", vim.log.levels.WARN)
+				end)
+				return
+			end
+			if vim.fn.filereadable(sound_path) ~= 1 then
+				vim.schedule(function()
+					vim.notify_once("Build desktop sound file missing: " .. sound_path, vim.log.levels.WARN)
+				end)
+				return
+			end
+			vim.schedule(function()
+				if status == "FAILURE" then
+					stop_failure_desktop_sound()
+					failure_sound_job_id = vim.fn.jobstart({
+						"ffplay",
+						"-nodisp",
+						"-loglevel",
+						"error",
+						"-loop",
+						"0",
+						sound_path,
+					}, {
+						on_exit = function()
+							failure_sound_job_id = nil
+						end,
+					})
+					if failure_sound_job_id <= 0 then
+						failure_sound_job_id = nil
+						vim.notify_once("Build desktop failure sound failed to start.", vim.log.levels.WARN)
+					end
+					return
+				end
+				vim.fn.jobstart({ "ffplay", "-nodisp", "-autoexit", "-loglevel", "error", sound_path }, {
+					on_exit = function() end,
+				})
+			end)
+		end
+
+		local function notify_long_build_desktop(task, status)
+			local cfg = desktop_notify_config()
+			if not cfg.enabled then
+				return
+			end
+			local duration = math.max(0, (task.time_end or os.time()) - (task.time_start or os.time()))
+			if duration < cfg.minimum_duration then
+				return
+			end
+			local notifier = nil
+			if vim.fn.executable("notify-send") == 1 then
+				notifier = "notify-send"
+			elseif vim.fn.executable("dunstify") == 1 then
+				notifier = "dunstify"
+			else
+				vim.schedule(function()
+					vim.notify_once(
+						"Build desktop notification skipped: notify-send/dunstify is not installed.",
+						vim.log.levels.WARN
+					)
+				end)
+				return
+			end
+			local succeeded = status == "SUCCESS"
+			local title = succeeded and "Build success" or "Build failure"
+			local body = table.concat({
+				string.format("Task: %s", task.name),
+				string.format("Duration: %ds", duration),
+				string.format("CWD: %s", task.cwd or vim.fn.getcwd()),
+			}, "\n")
+			vim.system({
+				notifier,
+				"-a",
+				"Neovim",
+				"-u",
+				succeeded and "normal" or "critical",
+				title,
+				body,
+			}, { text = true }, function(obj)
+				if obj.code ~= 0 then
+					vim.schedule(function()
+						vim.notify_once(
+							"Build desktop notification failed: "
+								.. vim.trim(obj.stderr or obj.stdout or "notify error"),
+							vim.log.levels.WARN
+						)
+					end)
+					return
+				end
+				if cfg.sound then
+					play_desktop_build_sound(status)
+				end
+			end)
+		end
+
+		local function build_notification_test_task(status)
+			local cfg = desktop_notify_config()
+			local duration = math.max(cfg.minimum_duration, 1)
+			local now = os.time()
+			return {
+				name = "build-notify-test",
+				cwd = vim.fn.getcwd(),
+				time_start = now - duration,
+				time_end = now,
+				get_bufnr = function()
+					return nil
+				end,
+			}
+		end
+
+		local function test_desktop_build_notification(status)
+			stop_failure_desktop_sound()
+			notify_long_build_desktop(build_notification_test_task(status), status)
+		end
+
+		local function attach_build_notifications(task)
+			if not task or task.metadata._build_notifications_attached then
+				return
+			end
+			task.metadata._build_notifications_attached = true
 			task:subscribe("on_complete", function(completed_task, status)
 				if status ~= "SUCCESS" and status ~= "FAILURE" then
 					return
 				end
 				notify_long_build(completed_task, status)
+				notify_long_build_desktop(completed_task, status)
 			end)
 		end
 
@@ -764,18 +906,15 @@ return {
 													return
 												end
 												if choice == "Manual path input" then
-													vim.ui.input(
-														{
-															prompt = "Program path: ",
-															default = existing_profile.program or "",
-														},
-														function(inp)
-															if inp and inp ~= "" then
-																payload.program = rel_to_root(vim.fn.expand(inp), root)
-															end
-															done()
+													vim.ui.input({
+														prompt = "Program path: ",
+														default = existing_profile.program or "",
+													}, function(inp)
+														if inp and inp ~= "" then
+															payload.program = rel_to_root(vim.fn.expand(inp), root)
 														end
-													)
+														done()
+													end)
 													return
 												end
 												telescope_pick_file(root, "Select Program", function(abs_path)
@@ -816,15 +955,15 @@ return {
 													return
 												end
 												if choice == "Manual dir input" then
-													vim.ui.input(
-														{ prompt = "CWD path: ", default = existing_profile.cwd or root },
-														function(inp)
-															if inp and inp ~= "" then
-																payload.cwd = rel_to_root(vim.fn.expand(inp), root)
-															end
-															done()
+													vim.ui.input({
+														prompt = "CWD path: ",
+														default = existing_profile.cwd or root,
+													}, function(inp)
+														if inp and inp ~= "" then
+															payload.cwd = rel_to_root(vim.fn.expand(inp), root)
 														end
-													)
+														done()
+													end)
 													return
 												end
 												telescope_pick_dir(root, "Select CWD Directory", function(abs_path)
@@ -1194,7 +1333,7 @@ return {
 						launch_run()
 						return
 					end
-					attach_build_phone_notification(task)
+					attach_build_notifications(task)
 					task:subscribe("on_complete", function(_, status)
 						if status == "SUCCESS" then
 							launch_run()
@@ -1218,7 +1357,7 @@ return {
 					return
 				end
 				if name == "build" then
-					attach_build_phone_notification(task)
+					attach_build_notifications(task)
 				end
 				local function launch_interactive_task()
 					if not task or not task.metadata or not task.metadata.interactive then
@@ -1541,6 +1680,15 @@ return {
 			local path = root .. "/.nvim/targets.json"
 			vim.cmd("edit " .. vim.fn.fnameescape(path))
 		end, {})
+		vim.api.nvim_create_user_command("BuildNotifyTestSuccess", function()
+			test_desktop_build_notification("SUCCESS")
+		end, { desc = "Test desktop build success notification" })
+		vim.api.nvim_create_user_command("BuildNotifyTestFailure", function()
+			test_desktop_build_notification("FAILURE")
+		end, { desc = "Test desktop build failure notification" })
+		vim.api.nvim_create_user_command("BuildNotifyStop", stop_failure_desktop_sound, {
+			desc = "Stop looping build failure sound",
+		})
 		vim.api.nvim_create_user_command("TargetWizard", target_wizard, {})
 		vim.api.nvim_create_user_command("TargetRemove", remove_target_wizard, {})
 		vim.api.nvim_create_user_command("ProfileRemove", remove_profile_wizard, {})
@@ -1594,6 +1742,9 @@ return {
 		vim.keymap.set("n", "<leader>bb", function()
 			run_task_by_name("build")
 		end, { desc = "🔨 Build" })
+		vim.keymap.set("n", "<leader>bf", function()
+			run_task_by_name("format")
+		end, { desc = "🧼 Format CWD" })
 		vim.keymap.set("n", "<leader>bt", function()
 			run_task_by_name("test")
 		end, { desc = "🧪 Test" })
@@ -1708,6 +1859,10 @@ return {
 		end)
 
 		local group = vim.api.nvim_create_augroup("BuildSystemJust", { clear = true })
+		vim.api.nvim_create_autocmd("FocusGained", {
+			group = group,
+			callback = stop_failure_desktop_sound,
+		})
 		vim.api.nvim_create_autocmd({ "VimEnter", "DirChanged" }, {
 			group = group,
 			callback = function()
@@ -1723,6 +1878,10 @@ return {
 				refresh_metadata()
 				overseer.clear_task_cache()
 			end,
+		})
+		vim.api.nvim_create_autocmd("VimLeavePre", {
+			group = group,
+			callback = stop_failure_desktop_sound,
 		})
 	end,
 }

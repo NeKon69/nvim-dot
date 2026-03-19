@@ -76,7 +76,7 @@ return {
 					hl["@lsp.typemod.struct.defaultLibrary"] = type_color
 					hl["@lsp.typemod.function.defaultLibrary"] = function_style
 					hl["@lsp.typemod.method.defaultLibrary"] = method_style
-					hl["@lsp.typemod.type.defaultLibrary"] = { fg = c.green1 }
+					hl["@lsp.typemod.type.defaultLibrary"] = type_color
 					hl["@lsp.typemod.typeAlias.defaultLibrary"] = type_color
 					hl["@lsp.typemod.enum.defaultLibrary"] = type_color
 					hl["@lsp.type.concept"] = type_color

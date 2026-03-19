@@ -55,7 +55,7 @@ return {
 					"opencode",
 					"run",
 					"--agent",
-					"build",
+					"99-file-writer",
 					"-m",
 					context.model,
 					"--format",

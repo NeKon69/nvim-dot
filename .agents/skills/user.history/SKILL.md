@@ -3,10 +3,6 @@
 This file is generated for source `lua/user/history.lua`.
 Use it as a fast API/command index before reading source.
 
-## Behavior Notes
-
-- Uses `plenary.path` when available, but now falls back to a local path shim so startup does not fail if `plenary.nvim` is not installed yet.
-
 ## Commands (`:`) detected in file
 
 _No user commands detected in static scan._
@@ -65,8 +61,6 @@ Before wiring them into keymaps/autocmds, verify expected input/output behavior 
 - `.nvim/history`
 
 - `.nvim/history.jsonl`
-
-- `plenary.path` (optional)
 
 - `telescope.actions`
 

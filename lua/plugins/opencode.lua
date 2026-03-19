@@ -55,6 +55,9 @@ return {
 					border = "rounded",
 					width = 0.9,
 					height = 0.9,
+					keys = {
+						term_normal = false,
+					},
 					on_buf = function(win)
 						apply_opencode_keymaps(win.buf)
 					end,

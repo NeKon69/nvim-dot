@@ -6,6 +6,12 @@ Use it as a fast API/command index before reading source.
 ## Commands (`:`) detected in file
 
 ```vim
+:BuildNotifyStop
+
+:BuildNotifyTestFailure
+
+:BuildNotifyTestSuccess
+
 :DebugTargetEdit
 
 :DebugTargetShow
@@ -45,6 +51,8 @@ vim.keymap.set("n", "<leader>bc", function()
 
 vim.keymap.set("n", "<leader>be", open_args_console, { desc = "Args Console (Run on Enter)" })
 
+vim.keymap.set("n", "<leader>bf", function()
+
 vim.keymap.set("n", "<leader>bp", remove_profile_wizard, { desc = "🗑️ Remove Profile" })
 
 vim.keymap.set("n", "<leader>br", function()
@@ -65,7 +73,11 @@ event = "BufWritePost"
 
 event = "DirChanged"
 
+event = "FocusGained"
+
 event = "VimEnter"
+
+event = "VimLeavePre"
 
 ```
 
