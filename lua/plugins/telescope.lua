@@ -8,7 +8,6 @@ return {
 		"nvim-telescope/telescope-fzf-native.nvim",
 	},
 	config = function()
-		local builtin = require("telescope.builtin")
 		local telescope = require("telescope")
 
 		telescope.setup({

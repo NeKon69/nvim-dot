@@ -55,6 +55,7 @@ vim.opt.shortmess:append("I")
 
 require("user.triforce_bridge")
 require("user.options")
+require("user.folding").setup()
 require("user.cwd_lock").setup()
 require("user.keymaps")
 require("lazy").setup("plugins", {

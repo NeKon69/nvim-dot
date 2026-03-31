@@ -1,13 +1,13 @@
-# Plugin.telescope API Reference
+# Plugin.folding API Reference
 
-This file is generated for source `lua/plugins/telescope.lua`.
+This file is generated for source `lua/plugins/folding.lua`.
 Use it as a fast API/command index before reading source.
 
 ## Commands (`:`) detected in file
 
 _No user commands detected in static scan._
 
-## Module API (`plugins.telescope`)
+## Module API (`plugins.folding`)
 
 _No exported API/keymaps/autocmds detected in static scan._
 
@@ -20,17 +20,11 @@ _No exported function signatures detected._
 
 ## References
 
-- `nvim-lua/plenary.nvim` (skill: `.agents/skills/plenary.nvim/SKILL.md`)
+- `kevinhwang91/nvim-ufo` (skill: `.agents/skills/nvim-ufo/SKILL.md`)
 
-- `nvim-telescope/telescope-fzf-native.nvim` (skill: `.agents/skills/telescope-fzf-native.nvim/SKILL.md`)
+- `kevinhwang91/promise-async` (skill: `.agents/skills/promise-async/SKILL.md`)
 
-- `nvim-telescope/telescope-ui-select.nvim`
-
-- `nvim-telescope/telescope.nvim` (skill: `.agents/skills/telescope.nvim/SKILL.md`)
-
-- `telescope` (skill: `.agents/skills/telescope.nvim/SKILL.md`)
-
-- `telescope.themes`
+- `ufo`
 
 
 _Generated in headless mode from static file analysis._

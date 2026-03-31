@@ -21,10 +21,6 @@ local function path_to_namespace(path)
 	return namespace
 end
 
-local function to_upper_snake(str)
-	return str:gsub("([A-Z])", "_%1"):gsub("^_", ""):upper()
-end
-
 local function ensure_dir(path)
 	vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
 end
@@ -34,7 +30,6 @@ local templates = {
 		name = "C++ Class (Header + Source)",
 		ext = { ".h", ".cpp" },
 		generator = function(name, path)
-			local header_guard = to_upper_snake(path:gsub("/", "_") .. "_" .. name) .. "_H"
 			local namespace = path_to_namespace(path)
 			local include_path = path ~= "" and path .. "/" .. name or name
 
@@ -92,7 +87,6 @@ namespace %s {
 		name = "C++ Header-Only Class",
 		ext = { ".h" },
 		generator = function(name, path)
-			local header_guard = to_upper_snake(path:gsub("/", "_") .. "_" .. name) .. "_H"
 			local namespace = path_to_namespace(path)
 
 			local header = string.format(
@@ -182,7 +176,7 @@ void %s_launch(float* d_output, const float* d_input, int size) {
 	{
 		name = "Single Header (.h)",
 		ext = { ".h" },
-		generator = function(name, path)
+		generator = function(_, path)
 			local namespace = path_to_namespace(path)
 
 			local header = string.format(
@@ -205,7 +199,7 @@ namespace %s {
 	{
 		name = "Single Source (.cpp)",
 		ext = { ".cpp" },
-		generator = function(name, path)
+		generator = function(_, path)
 			local namespace = path_to_namespace(path)
 
 			local source = string.format(
@@ -226,7 +220,7 @@ namespace %s {
 	{
 		name = "Python Module (.py)",
 		ext = { ".py" },
-		generator = function(name, path)
+		generator = function(name, _)
 			local module = string.format(
 				[["""
 Module: %s
@@ -250,7 +244,7 @@ if __name__ == "__main__":
 	{
 		name = "Rust Module (.rs)",
 		ext = { ".rs" },
-		generator = function(name, path)
+		generator = function(name, _)
 			local module = string.format(
 				[[pub struct %s {
 }
@@ -303,7 +297,7 @@ function M.create_from_template()
 				end,
 			}),
 			sorter = conf.generic_sorter({}),
-			attach_mappings = function(prompt_bufnr, map)
+			attach_mappings = function(prompt_bufnr)
 				actions.select_default:replace(function()
 					actions.close(prompt_bufnr)
 					local selection = action_state.get_selected_entry()

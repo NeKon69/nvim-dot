@@ -52,7 +52,10 @@ return {
 		bigfile = { enabled = true },
 		notifier = { enabled = true, timeout = 3000 },
 		quickfile = { enabled = true },
-		statuscolumn = { enabled = true },
+		statuscolumn = {
+			enabled = true,
+			right = { "git" },
+		},
 		indent = { enabled = true },
 		scroll = { enabled = true },
 		words = { enabled = true },

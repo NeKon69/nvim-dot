@@ -193,10 +193,6 @@ local function trim_empty_edges(lines)
 	return lines
 end
 
-local function str_starts_with(s, p)
-	return s:sub(1, #p) == p
-end
-
 local function get_buf_path(bufnr)
 	local name = vim.api.nvim_buf_get_name(bufnr)
 	if name == "" then
