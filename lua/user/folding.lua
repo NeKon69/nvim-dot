@@ -671,6 +671,28 @@ local function add_fold(bufnr, range)
 	manual_fold_ranges[bufnr] = dedupe_ranges(manual_fold_ranges[bufnr])
 end
 
+local function forget_opened_fold(bufnr, range)
+	if not active_manual_folds[bufnr] or not range then
+		return
+	end
+
+	local remaining = {}
+	for _, candidate in ipairs(manual_fold_ranges[bufnr] or {}) do
+		local contained = candidate.start_line >= range.start_line and candidate.end_line <= range.end_line
+		if not contained then
+			table.insert(remaining, candidate)
+		end
+	end
+
+	if vim.tbl_isempty(remaining) then
+		active_manual_folds[bufnr] = nil
+		manual_fold_ranges[bufnr] = nil
+		return
+	end
+
+	manual_fold_ranges[bufnr] = dedupe_ranges(remaining)
+end
+
 local function refresh_buffer_folds(bufnr)
 	if not active_manual_folds[bufnr] then
 		return
@@ -714,7 +736,13 @@ function M.toggle()
 end
 
 function M.open_current_fold_or_enter()
-	if vim.fn.foldclosed(vim.fn.line(".")) ~= -1 then
+	local line = vim.fn.line(".")
+	local start_line = vim.fn.foldclosed(line)
+	if start_line ~= -1 then
+		forget_opened_fold(vim.api.nvim_get_current_buf(), {
+			start_line = start_line,
+			end_line = vim.fn.foldclosedend(line),
+		})
 		return "zO"
 	end
 
@@ -723,7 +751,7 @@ end
 
 function M.collapse_current_node()
 	local bufnr = vim.api.nvim_get_current_buf()
-	local range = get_current_toggle_range(bufnr)
+	local range = get_current_structural_node(bufnr) or get_current_toggle_range(bufnr)
 	if not range then
 		return
 	end
