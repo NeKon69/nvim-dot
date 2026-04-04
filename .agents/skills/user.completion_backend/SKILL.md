@@ -1,22 +1,23 @@
-# User.minuet_context API Reference
+# User.completion_backend API Reference
 
-This file is generated for source `lua/user/minuet_context.lua`.
+This file is generated for source `lua/user/completion_backend.lua`.
 Use it as a fast API/command index before reading source.
 
 ## Commands (`:`) detected in file
 
-_No user commands detected in static scan._
+```vim
+:CompletionBackend
 
-## Module API (`user.minuet_context`)
+```
+
+## Module API (`user.completion_backend`)
 
 ```lua
-require("user.minuet_context").build_payload(_, _)
+require("user.completion_backend").current()
 
-require("user.minuet_context").setup(opts)
+require("user.completion_backend").set(backend)
 
-require("user.minuet_context").truncate_after(text)
-
-require("user.minuet_context").truncate_before(text)
+require("user.completion_backend").setup_command()
 
 ```
 
@@ -25,13 +26,11 @@ require("user.minuet_context").truncate_before(text)
 These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
 Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
 
-- `build_payload(_, _)`
+- `set(backend)`
 
-- `setup(opts)`
+- `current()`
 
-- `truncate_after(text)`
-
-- `truncate_before(text)`
+- `setup_command()`
 
 
 ## References

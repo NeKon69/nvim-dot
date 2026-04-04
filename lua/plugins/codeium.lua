@@ -1,6 +1,11 @@
 return {
 	"Exafunction/windsurf.nvim",
-	enabled = false,
+	enabled = function()
+		return require("user.completion_backend").current() == "codeium"
+	end,
+	init = function()
+		require("user.completion_backend").setup_command()
+	end,
 	event = "InsertEnter",
 	dependencies = {
 		"nvim-lua/plenary.nvim",

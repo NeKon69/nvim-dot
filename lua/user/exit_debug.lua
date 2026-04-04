@@ -162,8 +162,6 @@ end
 local function install_wrappers()
 	wrap_loaded_function("user.minuet_local", "start_server", "minuet_local.start_server")
 	wrap_loaded_function("user.minuet_local", "stop_server", "minuet_local.stop_server")
-	wrap_loaded_function("user.local_llm_inline", "start_server", "local_llm_inline.start_server")
-	wrap_loaded_function("user.local_llm_inline", "stop_server", "local_llm_inline.stop_server")
 	wrap_loaded_function("persistence", "save", "persistence.save")
 	wrap_loaded_function("harpoon", "sync", "harpoon.sync")
 	wrap_loaded_function("gitsigns.attach", "detach_all", "gitsigns.detach_all")

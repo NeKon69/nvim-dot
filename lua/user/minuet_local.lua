@@ -1,14 +1,15 @@
 local M = {}
 
 local uv = vim.uv
+local model_config = require("user.minuet_model")
 
 local defaults = {
 	server = {
-		command = "llama-server",
-		model = vim.fn.expand("~/Downloads/Qwen3.5-9B-Q6_K.gguf"),
-		host = "127.0.0.1",
-		port = 8012,
-		ctx_size = 8192,
+		command = model_config.llama_server_bin(),
+		model = model_config.model_path,
+		host = model_config.server_host(),
+		port = model_config.server_port(),
+		ctx_size = 24576,
 		n_gpu_layers = 99,
 		threads = -1,
 		flash_attn = "on",
@@ -93,6 +94,12 @@ local function check_health(cb)
 	end)
 end
 
+local function check_health_sync()
+	local url = string.format("http://%s:%d/health", state.config.server.host, state.config.server.port)
+	local res = vim.system({ "curl", "-sS", "--max-time", "1", url }, { text = true }):wait()
+	return res.code == 0
+end
+
 local function set_unhealthy()
 	state.starting = false
 	state.healthy = false
@@ -144,6 +151,11 @@ function M.start_server()
 	end
 	if not path_exists(cfg.model) then
 		notify("model not found: " .. cfg.model, vim.log.levels.ERROR)
+		return
+	end
+	if check_health_sync() then
+		state.healthy = true
+		state.retries = 0
 		return
 	end
 

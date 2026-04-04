@@ -1,11 +1,18 @@
 return {
 	"milanglacier/minuet-ai.nvim",
-	enabled = true,
+	enabled = function()
+		return require("user.completion_backend").current() == "local"
+	end,
+	init = function()
+		require("user.completion_backend").setup_command()
+	end,
 	event = "VimEnter",
 	dependencies = {
 		"nvim-lua/plenary.nvim",
 	},
 	config = function()
+		local model_config = require("user.minuet_model")
+
 		require("user.minuet_local").setup()
 		require("user.minuet_context").setup()
 
@@ -33,53 +40,53 @@ return {
 				openai_fim_compatible = {
 					api_key = "TERM",
 					name = "Llama.cpp",
-					end_point = "http://127.0.0.1:8012/v1/completions",
-					model = "Qwen3.5-9B-Q6_K",
+					end_point = model_config.completions_endpoint(),
+					model = model_config.model_name,
 					stream = true,
 					template = {
 						prompt = function(context_before_cursor, context_after_cursor, _)
 							local ctx = require("user.minuet_context")
 							local context_payload = ctx.build_payload(context_before_cursor, context_after_cursor)
-							local before = ctx.sanitize_prompt_text(context_before_cursor)
-							local after = ctx.sanitize_prompt_text(context_after_cursor)
-							local instructions = table.concat({
-								"/*__MINUET_INLINE_CONTRACT_BEGIN__",
-								"ROLE: local inline code completion engine.",
-								"OUTPUT: return ONLY raw code to insert at cursor.",
-								"You may return from start-of-line when needed; overlap is filtered.",
-								"FORBIDDEN: markdown, backticks, prose, task explanations.",
-								"FORBIDDEN: placeholder comments like 'TODO' or 'Implement ...'.",
-								"FORBIDDEN: escaped newline literals like \\n in output.",
-								"FORBIDDEN: starting unrelated functions/classes/sections unless directly required by current block.",
-								"RULES:",
-								"1) prefer minimal correct continuation.",
-								"2) preserve file style, naming, and surrounding conventions.",
-								"3) do not repeat text already present after cursor.",
-								"4) PRIORITY: finish the current coherent block first (current line -> statement -> block).",
-								"5) do not start a new block if the current block is incomplete.",
-								"6) if line is partial, complete that line before anything else.",
-								"7) stop as soon as the current block is coherently complete.",
-								"8) if uncertain, return short safe continuation.",
-								"__MINUET_INLINE_CONTRACT_END__*/",
+							local before = ctx.truncate_before(context_before_cursor)
+							local after = ctx.truncate_after(context_after_cursor)
+							return table.concat({
+								"Complete code by inserting text between PREFIX and SUFFIX.",
+								"Return only the missing inserted code.",
+								"Do not repeat PREFIX.",
+								"Do not repeat SUFFIX.",
+								"Do not rewrite the whole line, block, or file.",
+								"If the cursor is in the middle of a line, insert only what fits there.",
+								"Prefer a short useful continuation that completes the current coherent piece of code.",
+								"Never answer with only a safe closer like }, ), ], ;, or ,. ",
+								"No markdown, no tags, no explanations.",
+								"",
+								context_payload,
+								"[PREFIX]",
+								before,
+								"[SUFFIX]",
+								after,
+								"[INSERT_ONLY]",
 							}, "\n")
-							return "<|fim_prefix|>"
-								.. instructions
-								.. "\n"
-								.. context_payload
-								.. "\n"
-								.. before
-								.. "<|fim_suffix|>"
-								.. after
-								.. "<|fim_middle|>"
 						end,
 						suffix = false,
 					},
 					optional = {
 						max_tokens = 400,
-						temperature = 0.2,
-						top_p = 0.85,
-						top_k = 20,
-						repeat_penalty = 1.12,
+						temperature = 1.0,
+						top_p = 0.9,
+						top_k = 40,
+						repeat_penalty = 1.08,
+						stop = {
+							"```",
+							"<end>",
+							"<eos>",
+							"<end_of_turn>",
+							"<|",
+							"__LOCAL_CONTEXT_END__*/",
+							"[PREFIX]",
+							"[SUFFIX]",
+							"[INSERT_ONLY]",
+						},
 					},
 				},
 			},

@@ -1,26 +1,41 @@
-# Plugin.local_llm_inline API Reference
+# User.minuet_model API Reference
 
-This file is generated for source `lua/plugins/local_llm_inline.lua`.
+This file is generated for source `lua/user/minuet_model.lua`.
 Use it as a fast API/command index before reading source.
 
 ## Commands (`:`) detected in file
 
 _No user commands detected in static scan._
 
-## Module API (`plugins.local_llm_inline`)
+## Module API (`user.minuet_model`)
 
-_No exported API/keymaps/autocmds detected in static scan._
+```lua
+require("user.minuet_model").completions_endpoint()
+
+require("user.minuet_model").llama_server_bin()
+
+require("user.minuet_model").server_host()
+
+require("user.minuet_model").server_port()
+
+```
 
 ## Harder Calls (quick notes)
 
 These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
 Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
 
-_No exported function signatures detected._
+- `completions_endpoint()`
+
+- `llama_server_bin()`
+
+- `server_host()`
+
+- `server_port()`
+
 
 ## References
 
-- `nvim-lua/plenary.nvim` (skill: `.agents/skills/plenary.nvim/SKILL.md`)
-
+_No plugin/module references detected._
 
 _Generated in headless mode from static file analysis._
