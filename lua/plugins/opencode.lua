@@ -1,5 +1,27 @@
 return {
 	{
+		"Cannon07/code-preview.nvim",
+		cmd = {
+			"CodePreviewInstallClaudeCodeHooks",
+			"CodePreviewUninstallClaudeCodeHooks",
+			"CodePreviewInstallOpenCodeHooks",
+			"CodePreviewUninstallOpenCodeHooks",
+			"CodePreviewInstallCopilotCliHooks",
+			"CodePreviewUninstallCopilotCliHooks",
+			"CodePreviewCloseDiff",
+			"CodePreviewStatus",
+			"CodePreviewToggleVisibleOnly",
+		},
+		keys = {
+			{ "<leader>dq", "<cmd>CodePreviewCloseDiff<cr>", desc = "Close code-preview diff" },
+		},
+		opts = {
+			neo_tree = {
+				enabled = false,
+			},
+		},
+	},
+	{
 		"nickjvandyke/opencode.nvim",
 		cmd = { "Opencode", "OpencodeChat" },
 		keys = {

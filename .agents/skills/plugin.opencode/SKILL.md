@@ -31,6 +31,8 @@ _No exported function signatures detected._
 
 ## References
 
+- `Cannon07/code-preview.nvim`
+
 - `nickjvandyke/opencode.nvim`
 
 - `opencode`
