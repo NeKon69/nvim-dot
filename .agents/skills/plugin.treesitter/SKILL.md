@@ -20,6 +20,8 @@ _No exported function signatures detected._
 
 ## References
 
+- `application/ecmascript`
+
 - `nvim-treesitter.configs`
 
 - `nvim-treesitter.install`
@@ -29,6 +31,8 @@ _No exported function signatures detected._
 - `nvim-treesitter/nvim-treesitter-context` (skill: `.agents/skills/nvim-treesitter-context/SKILL.md`)
 
 - `nvim-treesitter/nvim-treesitter-textobjects` (skill: `.agents/skills/nvim-treesitter-textobjects/SKILL.md`)
+
+- `text/ecmascript`
 
 
 _Generated in headless mode from static file analysis._

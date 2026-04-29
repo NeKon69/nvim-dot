@@ -24,5 +24,7 @@ _No exported function signatures detected._
 
 - `taka-time`
 
+- `taka-time.utils`
+
 
 _Generated in headless mode from static file analysis._

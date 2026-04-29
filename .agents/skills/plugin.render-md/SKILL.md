@@ -9,14 +9,18 @@ _No user commands detected in static scan._
 
 ## Module API (`plugins.render-md`)
 
-_No exported API/keymaps/autocmds detected in static scan._
+```lua
+require("plugins.render-md").new()
+
+```
 
 ## Harder Calls (quick notes)
 
 These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
 Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
 
-_No exported function signatures detected._
+- `new()`
+
 
 ## References
 

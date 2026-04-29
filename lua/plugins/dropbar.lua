@@ -18,6 +18,13 @@ return {
 		opts = {
 			bar = {
 				hover = false, -- Выключаем, так как ты не захотел mousemoveevent
+				update_events = vim.fn.has("nvim-0.13") == 1 and {
+					buf = {
+						"FileChangedShellPost",
+						"TextChanged",
+						"ModeChanged",
+					},
+				} or nil,
 			},
 			menu = {
 				-- Настройки выпадающего меню

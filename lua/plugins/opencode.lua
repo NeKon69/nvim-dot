@@ -1,25 +1,21 @@
 return {
 	{
-		"Cannon07/code-preview.nvim",
-		cmd = {
-			"CodePreviewInstallClaudeCodeHooks",
-			"CodePreviewUninstallClaudeCodeHooks",
-			"CodePreviewInstallOpenCodeHooks",
-			"CodePreviewUninstallOpenCodeHooks",
-			"CodePreviewInstallCopilotCliHooks",
-			"CodePreviewUninstallCopilotCliHooks",
-			"CodePreviewCloseDiff",
-			"CodePreviewStatus",
-			"CodePreviewToggleVisibleOnly",
-		},
-		keys = {
-			{ "<leader>dq", "<cmd>CodePreviewCloseDiff<cr>", desc = "Close code-preview diff" },
-		},
+		dir = vim.fn.stdpath("config") .. "/local/opencode-review.nvim",
+		name = "opencode-review.nvim",
+		lazy = false,
 		opts = {
-			neo_tree = {
-				enabled = false,
+			debug = true,
+			port = 27100,
+			keymaps = {
+				accept = "da",
+				reject = "dr",
+				comment = "dc",
+				close = "dq",
 			},
 		},
+		config = function(_, opts)
+			require("opencode-review").setup(opts)
+		end,
 	},
 	{
 		"nickjvandyke/opencode.nvim",
@@ -49,7 +45,8 @@ return {
 			},
 		},
 		config = function()
-			local opencode_cmd = "opencode --port"
+			local opencode_port = 27100
+			local opencode_cmd = "opencode --port " .. opencode_port
 
 			local function apply_opencode_keymaps(buf)
 				local opts = { buffer = buf }
@@ -89,8 +86,15 @@ return {
 			}
 
 			vim.g.opencode_opts = {
+				events = {
+					permissions = {
+						edits = {
+							enabled = false,
+						},
+					},
+				},
 				server = {
-					port = 27100,
+					port = opencode_port,
 					start = function()
 						require("snacks.terminal").open(opencode_cmd, terminal_opts)
 					end,

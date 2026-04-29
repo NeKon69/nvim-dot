@@ -307,6 +307,12 @@ return {
 					lualine_z = { "location" },
 				},
 			})
+
+			vim.api.nvim_clear_autocmds({
+				group = "lualine",
+				event = "OptionSet",
+				pattern = "background",
+			})
 		end,
 	},
 

@@ -31,11 +31,11 @@ _No exported function signatures detected._
 
 ## References
 
-- `Cannon07/code-preview.nvim`
-
 - `nickjvandyke/opencode.nvim`
 
 - `opencode`
+
+- `opencode-review` (skill: `.agents/skills/opencode-review.nvim/SKILL.md`)
 
 - `snacks.terminal`
 
