@@ -477,6 +477,83 @@ return {
 			return data.targets[target]
 		end
 
+		local function merge_tables(base, override)
+			local out = vim.deepcopy(base or {})
+			for k, v in pairs(override or {}) do
+				if type(v) == "table" and type(out[k]) == "table" then
+					out[k] = merge_tables(out[k], v)
+				else
+					out[k] = vim.deepcopy(v)
+				end
+			end
+			return out
+		end
+
+		local function render_project_debug_value(value, effective)
+			if type(value) == "string" then
+				return targets_config.render_template(value, effective)
+			end
+			if type(value) ~= "table" then
+				return value
+			end
+
+			local out = {}
+			for k, v in pairs(value) do
+				out[k] = render_project_debug_value(v, effective)
+			end
+			return out
+		end
+
+		local function get_project_debug_entry(effective)
+			local data = load_debug_meta(effective.project_root)
+			local target = data.targets and data.targets[effective.target]
+			if type(target) ~= "table" then
+				return nil
+			end
+
+			local shared = type(target.shared) == "table" and target.shared or {}
+			local profiles = type(target.profiles) == "table" and target.profiles or nil
+			local profile = profiles and profiles[effective.profile]
+			if type(profile) == "table" then
+				return merge_tables(shared, profile)
+			end
+
+			profile = target[effective.profile]
+			if type(profile) == "table" then
+				return merge_tables(shared, profile)
+			end
+			if type(shared.dap) == "table" or type(shared.pre_debug) == "table" then
+				return shared
+			end
+
+			if type(target.dap) == "table" or type(target.pre_debug) == "table" then
+				return target
+			end
+
+			return nil
+		end
+
+		local function get_project_debug_spec(effective)
+			local entry = get_project_debug_entry(effective)
+			if not entry then
+				return nil
+			end
+
+			local dap_spec = entry.dap or entry
+			if type(dap_spec) ~= "table" or type(dap_spec.type) ~= "string" then
+				return nil, "Project debug entry is missing a DAP spec with a 'type' field."
+			end
+
+			local spec = render_project_debug_value(dap_spec, effective)
+			spec.name = spec.name or string.format("Target Debug: %s[%s]", effective.target, effective.profile)
+			spec.cwd = spec.cwd or effective.project_root
+			spec.build_task = spec.build_task or effective.build_task
+			if type(entry.pre_debug) == "table" then
+				spec.pre_debug = render_project_debug_value(entry.pre_debug, effective)
+			end
+			return spec
+		end
+
 		local debug_resolvers = {}
 		local function register_debug_resolver(language, resolver)
 			debug_resolvers[language] = resolver
@@ -741,6 +818,218 @@ return {
 			return prompt_join(parts), nil
 		end
 
+		local function strip_debug_command_prefix(cmdline)
+			local command = (cmdline or ""):match("^%s*debug%s+(.+)$")
+			if command then
+				return vim.trim(command), true
+			end
+			return vim.trim(cmdline or ""), false
+		end
+
+		local function debug_override_key(effective)
+			if type(effective) ~= "table" then
+				return nil
+			end
+			return table.concat({
+				effective.project_root or vim.fn.getcwd(),
+				effective.target or "",
+				effective.profile or "",
+			}, "::")
+		end
+
+		local function table_has_entries(value)
+			return type(value) == "table" and next(value) ~= nil
+		end
+
+		local function get_debug_override_entry(effective)
+			local key = debug_override_key(effective)
+			if not key then
+				return nil, nil, nil
+			end
+			local state = load_runtime_state()
+			local overrides = type(state.debug_command_overrides) == "table" and state.debug_command_overrides or {}
+			local entry = type(overrides[key]) == "table" and overrides[key] or nil
+			return entry, key, state
+		end
+
+		local function save_debug_command_override(cmdline, enabled)
+			local effective, err = targets_config.get_effective("debug")
+			if not effective then
+				return false, err
+			end
+			local command = strip_debug_command_prefix(cmdline)
+			if command == "" then
+				return false, "Debug command is empty."
+			end
+
+			local key = debug_override_key(effective)
+			local state = load_runtime_state()
+			state.debug_command_overrides = type(state.debug_command_overrides) == "table" and state.debug_command_overrides or {}
+			state.debug_command_overrides[key] = {
+				command = command,
+				enabled = enabled ~= false,
+			}
+			if not save_runtime_state(state) then
+				return false, "Failed to save debug command override."
+			end
+			return true, command
+		end
+
+		local function set_debug_command_override_enabled(enabled)
+			local effective, err = targets_config.get_effective("debug")
+			if not effective then
+				return false, err
+			end
+			local entry, key, state = get_debug_override_entry(effective)
+			if type(entry) ~= "table" or type(entry.command) ~= "string" or entry.command == "" then
+				return false,
+					"No debug override saved. Use <leader>be, enter the debug command, then press Ctrl-D to save it."
+			end
+			state.debug_command_overrides = type(state.debug_command_overrides) == "table" and state.debug_command_overrides or {}
+			entry.enabled = enabled
+			state.debug_command_overrides[key] = entry
+			if not save_runtime_state(state) then
+				return false, "Failed to save debug command override."
+			end
+			return true, entry
+		end
+
+		local function toggle_debug_command_override()
+			local effective, err = targets_config.get_effective("debug")
+			if not effective then
+				vim.notify(err, vim.log.levels.ERROR)
+				return
+			end
+			local entry = get_debug_override_entry(effective)
+			local ok, result = set_debug_command_override_enabled(not (entry and entry.enabled == true))
+			if not ok then
+				vim.notify(result, vim.log.levels.WARN)
+				return
+			end
+			vim.notify(
+				(result.enabled and "Debug override enabled: " or "Debug override disabled: ") .. result.command,
+				vim.log.levels.INFO
+			)
+		end
+
+		local function clear_debug_command_override()
+			local effective, err = targets_config.get_effective("debug")
+			if not effective then
+				vim.notify(err, vim.log.levels.ERROR)
+				return
+			end
+			local key = debug_override_key(effective)
+			local state = load_runtime_state()
+			if type(state.debug_command_overrides) == "table" then
+				state.debug_command_overrides[key] = nil
+				save_runtime_state(state)
+			end
+			vim.notify("Debug override cleared for current target/profile.", vim.log.levels.INFO)
+		end
+
+		local function show_debug_command_override()
+			local effective, err = targets_config.get_effective("debug")
+			if not effective then
+				vim.notify(err, vim.log.levels.ERROR)
+				return
+			end
+			local entry = get_debug_override_entry(effective)
+			if type(entry) ~= "table" or type(entry.command) ~= "string" or entry.command == "" then
+				vim.notify("Debug override: default project debug spec", vim.log.levels.INFO)
+				return
+			end
+			vim.notify(
+				string.format(
+					"Debug override %s: %s",
+					entry.enabled == true and "enabled" or "disabled",
+					entry.command
+				),
+				vim.log.levels.INFO
+			)
+		end
+
+		local function build_debug_spec_from_command(cmdline, effective)
+			local command = strip_debug_command_prefix(cmdline)
+			if command == "" then
+				return nil, "Debug command is empty."
+			end
+			local rendered = targets_config.render_template(command, effective)
+			local parts = parse_args(rendered)
+			if #parts == 0 then
+				return nil, "Debug command is empty."
+			end
+
+			local cwd = targets_config.resolve_cwd(effective) or vim.fn.getcwd()
+			local env = type(effective.env) == "table" and vim.deepcopy(effective.env) or {}
+			local index = 1
+			if parts[index] == "env" then
+				index = index + 1
+			end
+			while type(parts[index]) == "string" and parts[index]:match("^[%a_][%w_]*=.+") do
+				local key, value = parts[index]:match("^([%a_][%w_]*)=(.*)$")
+				env[key] = value
+				index = index + 1
+			end
+
+			local program = parts[index]
+			if not program or program == "" then
+				return nil, "Debug command has no executable."
+			end
+			local args = {}
+			for i = index + 1, #parts do
+				table.insert(args, parts[i])
+			end
+
+			local language = type(effective.language) == "string" and effective.language:lower() or ""
+			if language == "python" then
+				local python = get_python_interpreter(cwd)
+				local base = vim.fn.fnamemodify(program, ":t")
+				if base == "pytest" then
+					table.insert(args, 1, "pytest")
+					table.insert(args, 1, "-m")
+					program = python
+				end
+				local spec = {
+					type = "python",
+					request = "launch",
+					name = string.format("Debug Override: %s[%s]", effective.target, effective.profile),
+					program = program,
+					args = args,
+					cwd = cwd,
+					pythonPath = python,
+				}
+				if table_has_entries(env) then
+					spec.env = env
+				end
+				return spec
+			end
+
+			local spec = {
+				type = "codelldb",
+				request = "launch",
+				name = string.format("Debug Override: %s[%s]", effective.target, effective.profile),
+				program = program,
+				args = args,
+				cwd = cwd,
+				build_task = effective.build_task or "build",
+			}
+			if table_has_entries(env) then
+				spec.env = env
+			end
+			return spec
+		end
+
+		local function get_debug_command_override_spec(effective)
+			local entry = get_debug_override_entry(effective)
+			if type(entry) ~= "table" or entry.enabled ~= true then
+				return nil, nil
+			end
+			if type(entry.command) ~= "string" or entry.command == "" then
+				return nil, nil
+			end
+			return build_debug_spec_from_command(entry.command, effective)
+		end
+
 		local function sync_last_run_command_from_active()
 			local cmd = build_template_command_for_active_run()
 			if not cmd or cmd == "" then
@@ -827,6 +1116,8 @@ return {
 				end,
 			})
 		end
+
+		local sync_justfile_from_target_payload
 
 		local function target_wizard()
 			refresh_metadata()
@@ -1030,6 +1321,7 @@ return {
 																	vim.notify(err_upsert, vim.log.levels.ERROR)
 																	return
 																end
+																sync_justfile_from_target_payload(root, payload)
 																refresh_metadata()
 																local active_target, active_profile =
 																	targets_config.get_active()
@@ -1082,6 +1374,78 @@ return {
 				end
 				with_target(target_choice)
 			end)
+		end
+
+		local function quote_just_string(value)
+			return '"' .. value:gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
+		end
+
+		local function template_to_just_expr(value)
+			if type(value) ~= "string" or value == "" then
+				return nil
+			end
+
+			local parts = {}
+			local pos = 1
+			while true do
+				local start_pos, end_pos, key = value:find("{{%s*([%w_]+)%s*}}", pos)
+				if not start_pos then
+					local tail = value:sub(pos)
+					if tail ~= "" then
+						table.insert(parts, quote_just_string(tail))
+					end
+					break
+				end
+
+				local literal = value:sub(pos, start_pos - 1)
+				if literal ~= "" then
+					table.insert(parts, quote_just_string(literal))
+				end
+				table.insert(parts, key)
+				pos = end_pos + 1
+			end
+
+			if #parts == 0 then
+				return nil
+			end
+			return table.concat(parts, " + ")
+		end
+
+		local function set_just_assignment(root, name, expr)
+			local justfile = vim.fs.find({ "justfile", ".justfile" }, { path = root, upward = false, type = "file" })[1]
+			if not justfile then
+				return
+			end
+			local lines = vim.fn.readfile(justfile)
+			local pattern = "^%s*" .. name .. "%s*:="
+			for i, line in ipairs(lines) do
+				if line:match(pattern) then
+					lines[i] = name .. " := " .. expr
+					vim.fn.writefile(lines, justfile)
+					return
+				end
+			end
+
+			local insert_at = 0
+			for i, line in ipairs(lines) do
+				if line:match("^%s*[%w_]+%s*:=%s*") then
+					insert_at = i
+				elseif line:match("^%s*[%w_%-]+:%s*") then
+					break
+				end
+			end
+			table.insert(lines, insert_at + 1, name .. " := " .. expr)
+			vim.fn.writefile(lines, justfile)
+		end
+
+		sync_justfile_from_target_payload = function(root, payload)
+			local program_expr = template_to_just_expr(payload.program)
+			if program_expr then
+				set_just_assignment(root, "dap_bin", program_expr)
+			end
+			if type(payload.args) == "table" and #payload.args == 0 then
+				set_just_assignment(root, "dap_args", '""')
+			end
 		end
 
 		local function remove_profile_wizard()
@@ -1508,6 +1872,22 @@ return {
 					return
 				end
 				vim.bo[prompt_buf].modifiable = true
+				local raw_cmdline = current_command_line()
+				local _, is_debug_command = strip_debug_command_prefix(raw_cmdline)
+				if is_debug_command then
+					local ok, result = save_debug_command_override(raw_cmdline, true)
+					if not ok then
+						vim.notify(result, vim.log.levels.ERROR)
+						return
+					end
+					vim.notify("Debug override enabled: " .. result, vim.log.levels.INFO)
+					if _G.BuildSystem and _G.BuildSystem.start_debug_session then
+						_G.BuildSystem.start_debug_session()
+					else
+						vim.notify("DAP debug starter is not loaded yet.", vim.log.levels.WARN)
+					end
+					return
+				end
 				local cmdline = persist_command(current_command_line())
 				if cmdline == "" then
 					return
@@ -1522,6 +1902,19 @@ return {
 				end
 				vim.fn.chansend(job_id, "clear\n")
 				vim.fn.chansend(job_id, cmdline .. "\n")
+			end
+
+			local function debug_current_line()
+				if not vim.api.nvim_buf_is_valid(prompt_buf) then
+					return
+				end
+				vim.bo[prompt_buf].modifiable = true
+				local ok, result = save_debug_command_override(current_command_line(), true)
+				if not ok then
+					vim.notify(result, vim.log.levels.ERROR)
+					return
+				end
+				vim.notify("Debug override saved and enabled: " .. result, vim.log.levels.INFO)
 			end
 
 			local group = vim.api.nvim_create_augroup("BuildRunnerConsole_" .. prompt_buf, { clear = true })
@@ -1547,6 +1940,25 @@ return {
 				silent = true,
 				expr = true,
 				desc = "Run current command in runner terminal",
+			})
+			vim.keymap.set("n", "<C-d>", debug_current_line, {
+				buffer = prompt_buf,
+				silent = true,
+				desc = "Debug current command override",
+			})
+			vim.keymap.set("i", "<C-d>", function()
+				debug_current_line()
+				return ""
+			end, {
+				buffer = prompt_buf,
+				silent = true,
+				expr = true,
+				desc = "Debug current command override",
+			})
+			vim.keymap.set({ "n", "i" }, "<C-o>", toggle_debug_command_override, {
+				buffer = prompt_buf,
+				silent = true,
+				desc = "Toggle debug command override",
 			})
 			vim.keymap.set({ "n", "i" }, "<C-t>", function()
 				vim.api.nvim_set_current_win(term_win)
@@ -1592,6 +2004,17 @@ return {
 			if not effective then
 				return nil, err
 			end
+
+			local override_spec, override_err = get_debug_command_override_spec(effective)
+			if override_spec or override_err then
+				return override_spec, override_err
+			end
+
+			local project_spec, project_err = get_project_debug_spec(effective)
+			if project_spec or project_err then
+				return project_spec, project_err
+			end
+
 			if effective.language ~= "python" then
 				return nil, nil
 			end
@@ -1643,6 +2066,10 @@ return {
 		_G.BuildSystem.get_current_run_config = get_current_run_config_from_targets
 		_G.BuildSystem.get_current_debug_spec = get_current_debug_spec_from_targets
 		_G.BuildSystem.get_current_file_debug_spec = get_current_file_debug_spec
+		_G.BuildSystem.save_debug_command_override = save_debug_command_override
+		_G.BuildSystem.toggle_debug_command_override = toggle_debug_command_override
+		_G.BuildSystem.clear_debug_command_override = clear_debug_command_override
+		_G.BuildSystem.show_debug_command_override = show_debug_command_override
 		_G.BuildSystem.set_target_debug_meta = set_target_debug_meta
 		_G.BuildSystem.get_target_debug_meta = get_target_debug_meta
 		_G.BuildSystem.has_current_target_debug_meta = function()
@@ -1680,6 +2107,9 @@ return {
 			local path = root .. "/.nvim/targets.json"
 			vim.cmd("edit " .. vim.fn.fnameescape(path))
 		end, {})
+		vim.api.nvim_create_user_command("DebugOverrideShow", show_debug_command_override, {})
+		vim.api.nvim_create_user_command("DebugOverrideToggle", toggle_debug_command_override, {})
+		vim.api.nvim_create_user_command("DebugOverrideClear", clear_debug_command_override, {})
 		vim.api.nvim_create_user_command("BuildNotifyTestSuccess", function()
 			test_desktop_build_notification("SUCCESS")
 		end, { desc = "Test desktop build success notification" })
@@ -1759,6 +2189,7 @@ return {
 		vim.keymap.set("n", "<leader>bp", remove_profile_wizard, { desc = "🗑️ Remove Profile" })
 
 		vim.keymap.set("n", "<leader>be", open_args_console, { desc = "Args Console (Run on Enter)" })
+		vim.keymap.set("n", "<leader>bO", toggle_debug_command_override, { desc = "Toggle Debug Override" })
 
 		vim.keymap.set("n", "<leader>bE", function()
 			local data, justfile = get_just_info()

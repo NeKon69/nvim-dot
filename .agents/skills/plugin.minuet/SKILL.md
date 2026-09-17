@@ -10,15 +10,9 @@ _No user commands detected in static scan._
 ## Module API (`plugins.minuet`)
 
 ```lua
-event = "BufLeave"
-
-event = "CursorMovedI"
+event = "BufEnter"
 
 event = "InsertEnter"
-
-event = "InsertLeave"
-
-event = "TextChangedI"
 
 ```
 
@@ -34,8 +28,6 @@ _No exported function signatures detected._
 - `milanglacier/minuet-ai.nvim`
 
 - `minuet`
-
-- `minuet.virtualtext`
 
 - `nvim-lua/plenary.nvim` (skill: `.agents/skills/plenary.nvim/SKILL.md`)
 

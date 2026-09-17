@@ -104,6 +104,13 @@ return {
 				},
 			})
 
+			vim.lsp.config("asm_lsp", {
+				cmd = { "asm-lsp" },
+				filetypes = { "asm", "vmasm" },
+				capabilities = capabilities,
+				root_markers = { ".asm-lsp.toml", ".git" },
+			})
+
 			vim.lsp.config("basedpyright", {
 				cmd = { basedpyright_cmd(), "--stdio" },
 				filetypes = { "python" },
@@ -146,6 +153,7 @@ return {
 			vim.g.python_lsp_server = "basedpyright"
 
 			vim.lsp.enable({
+				"asm_lsp",
 				"clangd",
 				"lua_ls",
 				"basedpyright",

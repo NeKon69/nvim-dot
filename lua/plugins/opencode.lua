@@ -1,11 +1,28 @@
 return {
 	{
+		"azorng/vision.nvim",
+		lazy = false,
+		opts = {
+			selection = {
+				clear_after_send = true,
+			},
+			context = {
+				current_file = true,
+				cursor = false,
+				current_line = false,
+				diagnostics = false,
+			},
+		},
+		config = function(_, opts)
+			require("vision").setup(opts)
+		end,
+	},
+	{
 		dir = vim.fn.stdpath("config") .. "/local/opencode-review.nvim",
 		name = "opencode-review.nvim",
 		lazy = false,
 		opts = {
 			debug = true,
-			port = 27100,
 			keymaps = {
 				accept = "da",
 				reject = "dr",
@@ -45,8 +62,7 @@ return {
 			},
 		},
 		config = function()
-			local opencode_port = 27100
-			local opencode_cmd = "opencode --port " .. opencode_port
+			local opencode_cmd = "opencode --port"
 
 			local function apply_opencode_keymaps(buf)
 				local opts = { buffer = buf }
@@ -94,7 +110,6 @@ return {
 					},
 				},
 				server = {
-					port = opencode_port,
 					start = function()
 						require("snacks.terminal").open(opencode_cmd, terminal_opts)
 					end,

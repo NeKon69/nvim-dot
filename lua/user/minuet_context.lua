@@ -1,10 +1,10 @@
 local M = {}
 
 local defaults = {
-	nearby_lines = 5,
-	before_cursor_chars = 900,
-	after_cursor_chars = 220,
-	max_payload_chars = 1800,
+	nearby_lines = 16,
+	before_cursor_chars = 3200,
+	after_cursor_chars = 900,
+	max_payload_chars = 5000,
 }
 
 local state = {
@@ -56,6 +56,7 @@ function M.build_payload(_, _)
 	local path = get_buf_path(bufnr) or "[No Name]"
 	local cursor = vim.api.nvim_win_get_cursor(0)
 	local row = cursor[1]
+	local col = cursor[2] + 1
 	local total = vim.api.nvim_buf_line_count(bufnr)
 	local from_line = math.max(1, row - state.config.nearby_lines)
 	local to_line = math.min(total, row + state.config.nearby_lines)
@@ -63,7 +64,9 @@ function M.build_payload(_, _)
 
 	local payload = table.concat({
 		"[CURRENT_FILE] " .. path,
+		"[FILETYPE] " .. (vim.bo[bufnr].filetype or ""),
 		"[CURSOR_LINE] " .. tostring(row),
+		"[CURSOR_COLUMN] " .. tostring(col),
 		"[NEARBY_CODE]",
 		sanitize_prompt_text(table.concat(lines, "\n")),
 	}, "\n")

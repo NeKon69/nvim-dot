@@ -5,14 +5,14 @@ local model_config = require("user.minuet_model")
 
 local defaults = {
 	server = {
-		command = model_config.llama_server_bin(),
-		model = model_config.model_path,
+		command = model_config.chatmock_command(),
 		host = model_config.server_host(),
 		port = model_config.server_port(),
-		ctx_size = 16384,
-		n_gpu_layers = 99,
-		threads = -1,
-		flash_attn = "on",
+		reasoning_effort = "none",
+		reasoning_summary = "none",
+		reasoning_compat = "legacy",
+		fast_mode = true,
+		enable_web_search = false,
 		retries = 3,
 		retry_backoff_ms = 1200,
 		timeout_s = 25,
@@ -60,10 +60,6 @@ local function notify(msg, level)
 	end
 end
 
-local function path_exists(path)
-	return uv.fs_stat(path) ~= nil
-end
-
 local function kill(job)
 	if not job then
 		return
@@ -73,8 +69,8 @@ local function kill(job)
 	end)
 end
 
-local function spawn_watchdog(llama_pid)
-	if not llama_pid or llama_pid <= 0 then
+local function spawn_watchdog(server_pid)
+	if not server_pid or server_pid <= 0 then
 		return
 	end
 	kill(state.watchdog)
@@ -82,22 +78,27 @@ local function spawn_watchdog(llama_pid)
 	local cmd = string.format(
 		"while kill -0 %d >/dev/null 2>&1; do sleep 2; done; kill -TERM %d >/dev/null 2>&1",
 		nvim_pid,
-		llama_pid
+		server_pid
 	)
 	state.watchdog = vim.system({ "sh", "-c", cmd }, { text = true }, function() end)
 end
 
 local function check_health(cb)
-	local url = string.format("http://%s:%d/health", state.config.server.host, state.config.server.port)
+	local url = string.format("http://%s:%d/v1/models", state.config.server.host, state.config.server.port)
 	vim.system({ "curl", "-sS", "--max-time", "1", url }, { text = true }, function(res)
 		cb(res.code == 0)
 	end)
 end
 
 local function check_health_sync()
-	local url = string.format("http://%s:%d/health", state.config.server.host, state.config.server.port)
+	local url = string.format("http://%s:%d/v1/models", state.config.server.host, state.config.server.port)
 	local res = vim.system({ "curl", "-sS", "--max-time", "1", url }, { text = true }):wait()
 	return res.code == 0
+end
+
+local function supports_serve_flag(command, flag)
+	local res = vim.system({ command, "serve", "--help" }, { text = true }):wait()
+	return res.code == 0 and (res.stdout or ""):find(flag, 1, true) ~= nil
 end
 
 local function set_unhealthy()
@@ -115,7 +116,7 @@ local function wait_for_health_or_retry()
 			if ok then
 				state.starting = false
 				state.healthy = true
-				notify("llama-server ready", vim.log.levels.INFO)
+				notify("chatmock ready", vim.log.levels.INFO)
 				return
 			end
 			if not state.starting then
@@ -125,7 +126,7 @@ local function wait_for_health_or_retry()
 				set_unhealthy()
 				state.retries = state.retries + 1
 				if state.retries >= state.config.server.retries then
-					notify("llama-server failed after retries", vim.log.levels.WARN)
+					notify("chatmock failed after retries", vim.log.levels.WARN)
 					return
 				end
 				vim.defer_fn(function()
@@ -149,10 +150,6 @@ function M.start_server()
 		notify("command not found: " .. cfg.command, vim.log.levels.ERROR)
 		return
 	end
-	if not path_exists(cfg.model) then
-		notify("model not found: " .. cfg.model, vim.log.levels.ERROR)
-		return
-	end
 	if check_health_sync() then
 		state.healthy = true
 		state.retries = 0
@@ -162,30 +159,39 @@ function M.start_server()
 	state.starting = true
 	local cmd = {
 		cfg.command,
-		"-m",
-		cfg.model,
+		"serve",
 		"--host",
 		cfg.host,
 		"--port",
 		tostring(cfg.port),
-		"--ctx-size",
-		tostring(cfg.ctx_size),
-		"--n-gpu-layers",
-		tostring(cfg.n_gpu_layers),
-		"--threads",
-		tostring(cfg.threads),
-		"--flash-attn",
-		cfg.flash_attn,
+		"--reasoning-effort",
+		cfg.reasoning_effort,
+		"--reasoning-summary",
+		cfg.reasoning_summary,
+		"--reasoning-compat",
+		cfg.reasoning_compat,
 	}
+	if cfg.fast_mode and model_config.fast_mode_supported() then
+		vim.list_extend(cmd, { "--fast-mode" })
+	elseif supports_serve_flag(cfg.command, "--no-fast-mode") then
+		vim.list_extend(cmd, { "--no-fast-mode" })
+	elseif cfg.fast_mode then
+		notify("chatmock does not support --fast-mode; upgrade ChatMock to enable priority mode", vim.log.levels.WARN)
+	end
+	if cfg.enable_web_search then
+		vim.list_extend(cmd, { "--enable-web-search" })
+	else
+		vim.list_extend(cmd, { "--no-enable-web-search" })
+	end
 
 	state.job = vim.system(cmd, { text = true }, function(res)
 		set_unhealthy()
 		if res.code ~= 0 then
 			local err = vim.trim((res.stderr or ""):gsub("\n+", " "))
 			if err ~= "" then
-				notify("llama-server exited (" .. tostring(res.code) .. "): " .. err, vim.log.levels.WARN)
+				notify("chatmock exited (" .. tostring(res.code) .. "): " .. err, vim.log.levels.WARN)
 			else
-				notify("llama-server exited (" .. tostring(res.code) .. ")", vim.log.levels.WARN)
+				notify("chatmock exited (" .. tostring(res.code) .. ")", vim.log.levels.WARN)
 			end
 		end
 	end)
@@ -234,7 +240,7 @@ function M.setup(opts)
 			tostring(state.pid)
 		)
 		notify(msg)
-	end, { desc = "Show local llama-server status" })
+	end, { desc = "Show local ChatMock status" })
 
 	if vim.v.vim_did_enter == 1 then
 		vim.schedule(function()

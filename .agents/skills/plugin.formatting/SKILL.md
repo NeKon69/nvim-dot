@@ -33,6 +33,8 @@ _No exported function signatures detected._
 
 - `conform` (skill: `.agents/skills/conform.nvim/SKILL.md`)
 
+- `conform.util`
+
 - `lint`
 
 - `mfussenegger/nvim-lint` (skill: `.agents/skills/nvim-lint/SKILL.md`)

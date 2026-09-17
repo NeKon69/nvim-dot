@@ -226,6 +226,10 @@ local function should_activate_in_terminal(bufnr)
 	end
 
 	local shell = vim.fn.fnamemodify(argv[1] or "", ":t")
+	if #argv > 1 then
+		return false
+	end
+
 	local known_shells = {
 		fish = true,
 		bash = true,

@@ -3,7 +3,6 @@ local M = {}
 local state_file = vim.fn.stdpath("state") .. "/completion_backend.txt"
 local valid_backends = {
 	["local"] = true,
-	codeium = true,
 }
 
 M.default_backend = "local"
@@ -53,7 +52,7 @@ function M.setup_command()
 	end, {
 		nargs = 1,
 		complete = function()
-			return { "local", "codeium" }
+			return { "local" }
 		end,
 		desc = "Select completion backend",
 	})

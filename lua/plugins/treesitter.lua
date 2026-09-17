@@ -219,7 +219,7 @@ return {
 				enable = true, -- Это само выключит старый vim-хайлайт и запустит TS
 				additional_vim_regex_highlighting = false,
 			},
-			indent = { enable = true },
+			indent = { enable = false },
 
 			textobjects = {
 				select = {

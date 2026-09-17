@@ -3,6 +3,7 @@ return {
 		"williamboman/mason.nvim",
 		config = function()
 			require("mason").setup({
+				PATH = "skip",
 				ui = {
 					border = "rounded",
 				},
@@ -13,7 +14,7 @@ return {
 		"williamboman/mason-lspconfig.nvim",
 		config = function()
 			require("mason-lspconfig").setup({
-				ensure_installed = { "clangd", "lua_ls" },
+				ensure_installed = { "lua_ls" },
 				automatic_enable = false,
 			})
 		end,
@@ -23,13 +24,11 @@ return {
 		config = function()
 			require("mason-tool-installer").setup({
 				ensure_installed = {
-					"clangd",
 					"lua-language-server",
 					"glsl_analyzer",
 					"neocmakelsp",
 					"neocmake",
 					"stylua",
-					"clang-format",
 					"black",
 					"rustfmt",
 					"jq",

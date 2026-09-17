@@ -6,6 +6,7 @@ local f = io.open(log_path, "w")
 if f then
 	f:write("--- ТРАССИРОВКА СОБЫТИЙ ЗАПУЩЕНА: " .. os.date() .. " ---\n")
 	f:close()
+
 end
 
 local function log_to_file(event_type, match)

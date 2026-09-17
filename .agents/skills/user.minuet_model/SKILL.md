@@ -10,9 +10,19 @@ _No user commands detected in static scan._
 ## Module API (`user.minuet_model`)
 
 ```lua
+require("user.minuet_model").chat_completions_endpoint()
+
+require("user.minuet_model").chatmock_command()
+
 require("user.minuet_model").completions_endpoint()
 
-require("user.minuet_model").llama_server_bin()
+require("user.minuet_model").fast_mode_supported()
+
+require("user.minuet_model").model_candidates()
+
+require("user.minuet_model").request_fast_mode(model)
+
+require("user.minuet_model").request_model()
 
 require("user.minuet_model").server_host()
 
@@ -25,13 +35,21 @@ require("user.minuet_model").server_port()
 These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
 Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
 
+- `request_fast_mode(model)`
+
+- `chat_completions_endpoint()`
+
+- `chatmock_command()`
+
 - `completions_endpoint()`
 
-- `llama_server_bin()`
+- `fast_mode_supported()`
+
+- `model_candidates()`
+
+- `request_model()`
 
 - `server_host()`
-
-- `server_port()`
 
 
 ## References

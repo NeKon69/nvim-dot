@@ -1,20 +1,29 @@
 # User.options API Reference
 
-Source: `lua/user/options.lua`
+This file is generated for source `lua/user/options.lua`.
+Use it as a fast API/command index before reading source.
 
-## File Behavior
+## Commands (`:`) detected in file
 
-- Sets base editor options (clipboard, search, indentation, UI, undo, message behavior).
-- Sets `mapleader`/`maplocalleader` to space.
-- Disables built-in `netrw`/`netrwPlugin` to avoid conflicts with external file tree plugins.
-- Creates `FileExplorer` augroup and keeps `autochdir = false` for stable cwd behavior.
+_No user commands detected in static scan._
 
 ## Module API (`user.options`)
 
-- Exported module functions: none (this file configures `vim.opt`/globals directly on load).
+```lua
+event = "FileType"
 
-## Commands, Keymaps, Events
+```
 
-- User commands: none defined.
-- Keymaps: none defined.
-- Autocmd events: none defined in this file.
+## Harder Calls (quick notes)
+
+These calls are likely harder to wire correctly because they often have broader argument contracts, stateful behavior, or side effects.
+Before wiring them into keymaps/autocmds, verify expected input/output behavior in local code and related docs/skills.
+
+_No exported function signatures detected._
+
+## References
+
+- `text/plain`
+
+
+_Generated in headless mode from static file analysis._

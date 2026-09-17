@@ -98,6 +98,8 @@ map("n", "<C-h>", "<C-w>h", { desc = "Navigate Left" })
 map("n", "<C-j>", "<C-w>j", { desc = "Navigate Down" })
 map("n", "<C-k>", "<C-w>k", { desc = "Navigate Up" })
 map("n", "<C-l>", "<C-w>l", { desc = "Navigate Right" })
+map("n", "j", "gj", { desc = "Move Down by Display Line" })
+map("n", "k", "gk", { desc = "Move Up by Display Line" })
 
 -- [[ Build System (Overseer) ]] -----------------------------------------------
 map("n", "<leader>b", "", { noremap = true, silent = true, desc = "󱓧 Build" })

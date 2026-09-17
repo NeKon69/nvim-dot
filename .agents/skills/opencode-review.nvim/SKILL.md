@@ -28,6 +28,7 @@ Local plugin at `local/opencode-review.nvim`.
 - `dr`: reject the whole request
 - `dq`: close preview and reject the whole request
 - `dc`: reject the pending edit, keep the preview open, open the OpenCode window, insert a newline, and paste current line or visual selection as a bracketed-paste review note with `+`/`-`/space diff prefixes
+- `dc`: review comments explicitly state that the current edit request was rejected and should be reworked
 - `]c`: jump to next changed hunk in the review buffer
 - `[c`: jump to previous changed hunk in the review buffer
 
@@ -38,6 +39,7 @@ Local plugin at `local/opencode-review.nvim`.
 - Approved files are tracked across separate one-file permission requests until the first `dc` consumes that note.
 - The approved-file note is scoped to the current OpenCode response and cleared when the session goes idle with no active/queued reviews.
 - Concurrent one-file edit permission requests are queued and shown one at a time after `da`/`dr` handles the active preview.
+- The first review comment in a batch explicitly says whether the whole edit request was rejected or edits were rejected starting from the current file; later comments use shorter continuation wording.
 
 ## Module API
 

@@ -31,6 +31,8 @@ _No exported function signatures detected._
 
 ## References
 
+- `azorng/vision.nvim` (skill: `.agents/skills/vision.nvim/SKILL.md`)
+
 - `nickjvandyke/opencode.nvim`
 
 - `opencode`
@@ -38,6 +40,8 @@ _No exported function signatures detected._
 - `opencode-review` (skill: `.agents/skills/opencode-review.nvim/SKILL.md`)
 
 - `snacks.terminal`
+
+- `vision` (skill: `.agents/skills/vision.nvim/SKILL.md`)
 
 
 _Generated in headless mode from static file analysis._

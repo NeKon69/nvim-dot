@@ -8,15 +8,20 @@ local state = {
 	accepted_files = {},
 	approved_history = {},
 	approval_note_sent = false,
+	rejection_note_sent = false,
 	batch_active = false,
 	tab = nil,
 	buf = nil,
+	request_port = nil,
 	hunk_lines = {},
 	line_kinds = {},
 	loading_request = false,
 	queue = {},
 	event_job = nil,
+	event_jobs = {},
 	reconnect_timer = nil,
+	discovery_timer = nil,
+	port = nil,
 }
 
 local ns = vim.api.nvim_create_namespace("opencode-review")
@@ -24,7 +29,7 @@ local ns = vim.api.nvim_create_namespace("opencode-review")
 local defaults = {
 	debug = true,
 	idle_delay_ms = 300,
-	port = 27100,
+	port = nil,
 	reconnect_delay_ms = 2000,
 	keymaps = {
 		accept = "da",
@@ -80,11 +85,13 @@ local function reset_active()
 		vim.fn.delete(state.patch_file)
 	end
 	state.request_id = nil
+	state.request_port = nil
 	state.patch_file = nil
 	state.files = {}
 	state.index = 1
 	state.accepted_files = {}
 	state.approval_note_sent = false
+	state.rejection_note_sent = false
 	state.hunk_lines = {}
 	state.line_kinds = {}
 	state.buf = nil
@@ -96,6 +103,7 @@ local function reset()
 	state.loading_request = false
 	state.approved_history = {}
 	state.approval_note_sent = false
+	state.rejection_note_sent = false
 	state.batch_active = false
 end
 
@@ -108,14 +116,27 @@ local function clear_review_batch()
 	end
 	state.approved_history = {}
 	state.approval_note_sent = false
+	state.rejection_note_sent = false
 	state.batch_active = false
 end
 
-local function endpoint(path)
-	return string.format("http://127.0.0.1:%d%s", opts.port, path)
+local function endpoint(path, port)
+	port = port or state.request_port or state.port
+	local ok, events = pcall(require, "opencode.events")
+	port = port or (ok and events.connected_server and events.connected_server.port) or opts.port
+	if not port then
+		return nil
+	end
+	return string.format("http://127.0.0.1:%d%s", port, path)
 end
 
 local function reply_permission(request_id, reply)
+	local url = endpoint("/permission/" .. request_id .. "/reply", state.request_port)
+	if not url then
+		log("reply_permission skipped: no opencode server port")
+		return
+	end
+
 	local body = vim.json.encode({ reply = reply })
 	log(string.format("reply_permission: id=%s reply=%s", request_id, reply))
 	vim.system({
@@ -123,7 +144,7 @@ local function reply_permission(request_id, reply)
 		"-sS",
 		"-X",
 		"POST",
-		endpoint("/permission/" .. request_id .. "/reply"),
+		url,
 		"-H",
 		"content-type: application/json",
 		"-d",
@@ -186,18 +207,29 @@ local function format_review_lines(lines, start_line)
 	return table.concat(formatted, "\n")
 end
 
-local function find_opencode_terminal()
+local function find_current_tab_opencode_terminal()
+	local current_tab = vim.api.nvim_get_current_tabpage()
+	for _, win in ipairs(vim.api.nvim_tabpage_list_wins(current_tab)) do
+		local buf = vim.api.nvim_win_get_buf(win)
+		if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == "terminal" then
+			local name = vim.api.nvim_buf_get_name(buf)
+			if name:find("opencode", 1, true) then
+				local job = vim.b[buf].terminal_job_id
+				if job then
+					return job, buf, win
+				end
+			end
+		end
+	end
+end
+
+local function find_any_opencode_terminal()
 	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
 		if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == "terminal" then
 			local name = vim.api.nvim_buf_get_name(buf)
 			if name:find("opencode", 1, true) then
 				local job = vim.b[buf].terminal_job_id
 				if job then
-					for _, win in ipairs(vim.api.nvim_list_wins()) do
-						if vim.api.nvim_win_get_buf(win) == buf then
-							return job, buf, win
-						end
-					end
 					return job, buf, nil
 				end
 			end
@@ -206,27 +238,31 @@ local function find_opencode_terminal()
 end
 
 local function open_opencode_window()
-	local job, _, win = find_opencode_terminal()
+	local job, _, win = find_current_tab_opencode_terminal()
 	if win and vim.api.nvim_win_is_valid(win) then
 		vim.api.nvim_set_current_win(win)
 		return job
 	end
 
-	if job then
-		require("opencode").toggle()
-		return job
-	end
-
-	require("opencode").start()
+	require("opencode").toggle()
 end
 
 local function append_prompt_http(prompt)
+	local url = endpoint("/tui/append-prompt")
+	if not url then
+		log("append prompt skipped: no opencode server port")
+		vim.schedule(function()
+			notify("OpenCode server is not connected yet", vim.log.levels.WARN)
+		end)
+		return
+	end
+
 	vim.system({
 		"curl",
 		"-sS",
 		"-X",
 		"POST",
-		endpoint("/tui/append-prompt") .. "?directory=" .. vim.uri_encode(vim.fn.getcwd(), "rfc3986"),
+		url .. "?directory=" .. vim.uri_encode(vim.fn.getcwd(), "rfc3986"),
 		"-H",
 		"content-type: application/json",
 		"-d",
@@ -244,7 +280,16 @@ end
 local function paste_prompt(prompt)
 	open_opencode_window()
 	vim.defer_fn(function()
-		local job = find_opencode_terminal()
+		local job = find_current_tab_opencode_terminal()
+		if not job then
+			require("opencode").toggle()
+		end
+	end, 50)
+	vim.defer_fn(function()
+		local job = find_current_tab_opencode_terminal()
+		if not job then
+			job = find_any_opencode_terminal()
+		end
 		if not job then
 			log("paste_prompt: no OpenCode terminal job, falling back to HTTP append")
 			append_prompt_http(prompt)
@@ -261,16 +306,32 @@ local function send_review_comment()
 	local range = start_line == end_line and tostring(start_line) or (start_line .. "-" .. end_line)
 	local prompt_lines = {}
 	local approved_files = approved_files_for_note()
+	if not state.rejection_note_sent then
+		if #approved_files > 0 then
+			prompt_lines[#prompt_lines + 1] = "I rejected your edits starting from this file."
+			prompt_lines[#prompt_lines + 1] = "Do not apply the current rejected edit as-is."
+		else
+			prompt_lines[#prompt_lines + 1] = "I rejected the whole edit request."
+			prompt_lines[#prompt_lines + 1] = "Do not apply it as-is."
+		end
+		state.rejection_note_sent = true
+	else
+		prompt_lines[#prompt_lines + 1] = "Another rejected edit in the same batch: rework this part too."
+	end
 	if not state.approval_note_sent and #approved_files > 0 then
+		prompt_lines[#prompt_lines + 1] = ""
 		prompt_lines[#prompt_lines + 1] = "I accepted edits to these files:"
 		for _, accepted_file in ipairs(approved_files) do
 			prompt_lines[#prompt_lines + 1] = "- " .. accepted_file
 		end
-		prompt_lines[#prompt_lines + 1] = "I approve changes in these files but not the whole change."
+		prompt_lines[#prompt_lines + 1] = "Keep those approved edits, but rework the rejected edit below."
 		prompt_lines[#prompt_lines + 1] = ""
 		state.approved_history = {}
 		state.accepted_files = {}
 		state.approval_note_sent = true
+	else
+		prompt_lines[#prompt_lines + 1] = "Please rework it using the review note below."
+		prompt_lines[#prompt_lines + 1] = ""
 	end
 	vim.list_extend(prompt_lines, {
 		"Review note for " .. file .. ":" .. range .. ":",
@@ -411,6 +472,7 @@ local function begin_request(request)
 	log("begin_request: " .. request.id)
 	reset_active()
 	state.request_id = request.id
+	state.request_port = request.port
 	state.files = request.files
 	state.index = 1
 	state.patch_file = vim.fn.tempname() .. ".patch"
@@ -629,7 +691,8 @@ function M.reject_request()
 	begin_next_request()
 end
 
-local function handle_event(event)
+local function handle_event(event, port)
+	state.port = port or state.port
 	local properties = event.properties or {}
 	local metadata = properties.metadata or {}
 	log(
@@ -673,6 +736,7 @@ local function handle_event(event)
 
 	local request = {
 		id = event.properties.id,
+		port = port or state.port,
 		diff = diff,
 		files = files,
 	}
@@ -698,7 +762,8 @@ local function handle_event(event)
 end
 
 local function handle_permission_autocmd(args)
-	handle_event(args.data.event)
+	state.port = args.data and args.data.port or state.port
+	handle_event(args.data.event, state.port)
 end
 
 local function schedule_reconnect()
@@ -721,27 +786,41 @@ local function schedule_reconnect()
 	)
 end
 
-function M.stop()
-	if state.event_job then
-		vim.fn.jobstop(state.event_job)
-		state.event_job = nil
+local function discover_opencode_ports()
+	local result = vim.system({ "lsof", "-nP", "-iTCP", "-sTCP:LISTEN" }, { text = true }):wait()
+	if result.code ~= 0 then
+		log("discover ports failed: " .. (result.stderr or ""))
+		return {}
 	end
-	if state.reconnect_timer then
-		state.reconnect_timer:stop()
-		state.reconnect_timer:close()
-		state.reconnect_timer = nil
+
+	local ports = {}
+	local seen = {}
+	for line in (result.stdout or ""):gmatch("[^\n]+") do
+		if line:match("^opencode%s") then
+			local port = tonumber(line:match("127%.0%.0%.1:(%d+)%s*%(%u+%)"))
+			if port and not seen[port] then
+				seen[port] = true
+				ports[#ports + 1] = port
+			end
+		end
 	end
+	table.sort(ports)
+	return ports
 end
 
-function M.start()
-	if state.event_job then
+local function start_event_stream(port)
+	if state.event_jobs[port] then
 		return
 	end
 
 	local buffer = ""
-	local url = endpoint("/event") .. "?directory=" .. vim.uri_encode(vim.fn.getcwd(), "rfc3986")
+	local event_endpoint = endpoint("/global/event", port)
+	if not event_endpoint then
+		return
+	end
+	local url = event_endpoint
 	log("start event stream: " .. url)
-	state.event_job = vim.fn.jobstart({ "curl", "-N", "-sS", url }, {
+	state.event_jobs[port] = vim.fn.jobstart({ "curl", "-N", "-sS", url }, {
 		stdout_buffered = false,
 		on_stdout = function(_, data)
 			for _, chunk in ipairs(data or {}) do
@@ -757,8 +836,9 @@ function M.start()
 						if payload and payload ~= "[DONE]" then
 							local ok, event = pcall(vim.json.decode, payload)
 							if ok and type(event) == "table" then
+								event = event.payload or event
 								vim.schedule(function()
-									handle_event(event)
+									handle_event(event, port)
 								end)
 							else
 								log("failed to decode event payload: " .. payload)
@@ -775,16 +855,60 @@ function M.start()
 			end
 		end,
 		on_exit = function(_, code)
-			log("event stream exited: " .. tostring(code))
-			state.event_job = nil
+			log("event stream exited: " .. tostring(code) .. " port=" .. tostring(port))
+			state.event_jobs[port] = nil
 			schedule_reconnect()
 		end,
 	})
 
-	if state.event_job <= 0 then
-		log("failed to start event stream")
-		state.event_job = nil
+	if state.event_jobs[port] <= 0 then
+		log("failed to start event stream on port " .. tostring(port))
+		state.event_jobs[port] = nil
 		schedule_reconnect()
+	end
+end
+
+function M.stop()
+	if state.event_job then
+		vim.fn.jobstop(state.event_job)
+		state.event_job = nil
+	end
+	for port, job in pairs(state.event_jobs) do
+		vim.fn.jobstop(job)
+		state.event_jobs[port] = nil
+	end
+	if state.reconnect_timer then
+		state.reconnect_timer:stop()
+		state.reconnect_timer:close()
+		state.reconnect_timer = nil
+	end
+	if state.discovery_timer then
+		state.discovery_timer:stop()
+		state.discovery_timer:close()
+		state.discovery_timer = nil
+	end
+end
+
+function M.start()
+	if opts.port then
+		start_event_stream(opts.port)
+		return
+	end
+
+	local ports = discover_opencode_ports()
+	if #ports == 0 then
+		log("start event stream skipped: no opencode listener ports")
+		schedule_reconnect()
+		return
+	end
+	for _, port in ipairs(ports) do
+		start_event_stream(port)
+	end
+	if not state.discovery_timer then
+		state.discovery_timer = vim.uv.new_timer()
+		if state.discovery_timer then
+			state.discovery_timer:start(opts.reconnect_delay_ms, opts.reconnect_delay_ms, vim.schedule_wrap(M.start))
+		end
 	end
 end
 

@@ -14,6 +14,10 @@ return {
 			},
 		},
 		opts = {
+			default_format_opts = {
+				timeout_ms = 1000,
+				lsp_fallback = true,
+			},
 			formatters_by_ft = {
 				lua = { "stylua" },
 				cpp = { "clang-format" },
@@ -23,11 +27,39 @@ return {
 				rust = { "rustfmt" },
 				json = { "jq" },
 			},
+			formatters = {
+				["clang-format"] = {
+					cwd = require("conform.util").root_file({
+						".clang-format",
+						".clangd",
+						"compile_commands.json",
+						".git",
+					}),
+				},
+				stylua = {
+					cwd = require("conform.util").root_file({ "stylua.toml", ".stylua.toml", ".git" }),
+				},
+				black = {
+					cwd = require("conform.util").root_file({ "pyproject.toml", ".git" }),
+				},
+				rustfmt = {
+					cwd = require("conform.util").root_file({ "rustfmt.toml", ".rustfmt.toml", "Cargo.toml", ".git" }),
+				},
+			},
 			format_on_save = false,
 		},
 		config = function(_, opts)
 			local conform = require("conform")
 			conform.setup(opts)
+
+			local function format_buffer(bufnr)
+				conform.format({
+					bufnr = bufnr,
+					async = false,
+					timeout_ms = 1000,
+					lsp_fallback = true,
+				})
+			end
 
 			local group = vim.api.nvim_create_augroup("format_changed_hunks", { clear = true })
 			vim.api.nvim_create_autocmd("BufWritePre", {
@@ -39,11 +71,13 @@ return {
 
 					local ok, gs = pcall(require, "gitsigns")
 					if not ok then
+						format_buffer(args.buf)
 						return
 					end
 
 					local hunks = gs.get_hunks(args.buf)
 					if not hunks or vim.tbl_isempty(hunks) then
+						format_buffer(args.buf)
 						return
 					end
 
@@ -85,6 +119,7 @@ return {
 				json = { "jsonlint" },
 				markdown = { "markdownlint" },
 			}
+			lint.linters.markdownlint.cmd = vim.fn.stdpath("data") .. "/mason/bin/markdownlint"
 
 			local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
 			vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
